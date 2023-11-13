@@ -1,3 +1,13 @@
 { 
   "project_folder" : "/Users/jboucas/nf-kallisto-test" ,
+  "library" : "/nexus/posix0/MAGE-flaski/service/hpc/home/jboucas/nextflow-crispr-data/library.csv",
+  "input_count" : "/nexus/posix0/MAGE-flaski/service/hpc/home/jboucas/nextflow-crispr-data/cutadapt_output" , 
+  "output_count" : "mageck_output/fastq",
+  "mageck_counts_type":"mageck",
+  "samples_tsv":"/nexus/posix0/MAGE-flaski/service/hpc/home/jboucas/nextflow-crispr-data/samples.tsv",
+  "output_test":"mageck_output/fastq/test",
+  "mageck_test_remove_zero": "none",
+  "mageck_test_remove_zero_threshold": "0" , 
+  "cnv_file": "/nexus/posix0/MAGE-flaski/service/projects/data/CRISPR_Screening/CS_main_pipe/CCLE_copynumber_byGene_2013-12-03.txt",
+  "cnv_line": "U2OS_BONE"
 }
