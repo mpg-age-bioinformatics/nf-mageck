@@ -9,5 +9,7 @@
   "mageck_test_remove_zero": "none",
   "mageck_test_remove_zero_threshold": "0" , 
   "cnv_file": "/nexus/posix0/MAGE-flaski/service/projects/data/CRISPR_Screening/CS_main_pipe/CCLE_copynumber_byGene_2013-12-03.txt",
-  "cnv_line": "U2OS_BONE"
+  "cnv_line": "U2OS_BONE",
+  "mleoutput": "/Users/jboucas/nf-kallisto-test/mageck_output/fastq/mle/",
+  "efficiency_matrix": "/SSC0.1/matrix/human_CRISPRi_20bp.matrix"
 }
