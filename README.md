@@ -26,20 +26,19 @@ curl -J -O https://raw.githubusercontent.com/mpg-age-bioinformatics/nf-fastqc/ma
 Run the workflow:
 ```
 RELEASE=1.0.0
-PROFILE=local
 ORIGIN="mpg-age-bioinformatics/"
 
-nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry images -profile ${PROFILE} && \
-nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry pre_process -profile ${PROFILE} && \
-nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_count -profile ${PROFILE} && \
-nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_pretest -profile ${PROFILE} && \
-nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_test -profile ${PROFILE} && \
-nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_pathway -profile ${PROFILE} && \
-nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_plot -profile ${PROFILE} && \
-nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_premle -profile ${PROFILE} && \
-nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_mle -profile ${PROFILE} && \
-nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_vispr -profile ${PROFILE} && \
-nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_flute -profile ${PROFILE}
+nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry images && \
+nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry pre_process && \
+nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_count && \
+nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_pretest && \
+nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_test && \
+nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_pathway && \
+nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_plot && \
+nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_premle && \
+nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_mle && \
+nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_vispr && \
+nextflow run ${ORIGIN}nf-mageck ${RELEASE} -params-file params.json -entry mageck_flute
 ```
 
 ## Parameters
