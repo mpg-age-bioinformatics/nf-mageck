@@ -35,6 +35,92 @@ process get_images {
 
 }
 
+process prorefile{
+  stageInMode 'symlink'
+  stageOutMode 'move'
+  input:
+    val matrices
+
+  when:
+    ( ! file("${params.project_folder}/samples_renamed.tsv").exists() )
+
+  script:
+  """
+#!/usr/local/bin/python3
+import pandas as pd
+import os
+
+matrices="${matrices}"
+
+EXC=pd.ExcelFile("${params.reference_file}", engine="openpyxl")
+
+# process library information
+df=EXC.parse("library")
+df=df.dropna()
+cols=df.columns.tolist()
+for c in cols:
+    df[c]=df[c].apply( lambda x: str(x).replace(" ","_") )
+df.to_excel("${params.project_folder}"+"/library.xlsx", index=None)
+# df=df[cols[:3]]
+# df.columns=["gene_id","UID", "seq"]
+df=df[["gene_ID","UID", "seq"]]
+df.columns=["gene_id","UID", "seq"]
+df.to_csv("${params.project_folder}"+"/library.tsv", sep="\\t", index=None)
+df[["UID", "seq", "gene_id"]].to_csv("${params.project_folder}"+"/library.csv", sep=",", index=None)
+dups=df[df.duplicated(subset=["seq"], keep=False)]
+# if dups were found report them
+if len(dups) > 0 :
+    dups.to_excel("${params.project_folder}/library.dups.xlsx", index=None)
+df=EXC.parse("sampleNames")
+df.to_csv("${params.project_folder}/samplesNames.tsv", sep=";", index=False, header=False)
+
+# process samples
+df=EXC.parse("samples")
+df.to_csv("${params.project_folder}/samples.tsv", sep=";", index=False, header=False)
+
+# if mle model tables in reference file
+sheets=[ s for s in EXC.sheet_names if "mle" in s ]
+if matrices :
+  for s in sheets:
+      new_name=s.split("mle.")[-1].replace(" ","_").replace(".","_")
+      if not os.path.isfile("${matrices}/matrix."+new_name+".tsv"):
+          df=EXC.parse(s)
+          matrix=df[~df["Samples"].isin(["sgrnas","genes"])]
+          controls=df[df["Samples"].isin(["sgrnas","genes"])]
+          matrix.to_csv("${matrices}/mat."+new_name+".tsv",sep="\\t",index=False)
+          controls.to_csv("${matrices}/mat."+new_name+".txt",sep=";",index=False,header=False)
+
+sampleNames = pd.read_csv("${params.project_folder}/samplesNames.tsv", header = None, sep = ";")
+samples_file = open('${params.project_folder}/samples.tsv', 'r')
+samples = samples_file.read()
+samples_file.close()
+raw_folder = "${params.raw_fastq}"
+renamed_folder = "${params.renamed_fastq}"
+# if sample names were given without fastq.gz ending. add it
+if not 'fastq.gz' in sampleNames.loc[0,1]:
+    sampleNames[2] = sampleNames[1] + ['.fastq.gz']
+else:
+    sampleNames[2] = sampleNames[1]
+
+for index, row in sampleNames.iterrows():
+    if not os.path.exists(renamed_folder+"/"+row[2]):
+        os.symlink(raw_folder+"/"+row[0], renamed_folder+"/"+row[2])
+    # replace names also in other files, this might be unnesseccary later on
+    samples = samples.replace(row[1], row[2])
+
+with open('${params.project_folder}/samples_renamed.tsv', 'w') as O:
+    O.write(samples)
+#make sure renaming does not happen in the first column 
+df_sample = pd.read_csv('${params.project_folder}/samples.tsv', sep=';', header=None)
+df_rename = pd.read_csv('${params.project_folder}/samples_renamed.tsv', sep=';', header=None)
+# Replace the first column in rename with the orignal
+df_rename[0] = df_sample[0]
+df_rename.to_csv('${params.project_folder}/samples_renamed.tsv', sep=';', index=False, header=False)
+  """
+
+}
+
+
 process procount {
   stageInMode 'symlink'
   stageOutMode 'move'
@@ -47,7 +133,7 @@ process procount {
   when:
     ( ! file("${params.project_folder}/${output_count}/counts.countsummary.txt").exists() )
   
-  script:
+  script:    
     """
     input_files=""
     samples=""
@@ -566,39 +652,122 @@ process proplot {
   """
 }
 
+process provispr {
+  stageInMode 'symlink'
+  stageOutMode 'move'
 
-// process upload_paths {
-//   stageInMode 'symlink'
-//   stageOutMode 'move'
+  input:
+    val gene_ranking_file
+    val test_type
 
-//   input:
-//     val fastqc_output
+  script:
+"""
+#!/usr/local/bin/python3
+import os
+import shutil
+import zipfile
 
-//   script:
-//   """
-//     cd ${params.project_folder}/${fastqc_output}
-//     rm -rf upload.txt
-//     for f in \$(ls *.html) ; do echo "fastqc \$(readlink -f \${f})" >>  upload.txt_ ; done
-//     uniq upload.txt_ upload.txt 
-//     rm upload.txt_
-//   """
-// }
+f=os.path.basename("${gene_ranking_file}")
+e=f.split('.gene_summary.txt')[0]
+if not os.path.isdir("${params.project_folder}/${params.output_vispr}/${test_type}/") :
+  os.makedirs("${params.project_folder}/${params.output_vispr}/${test_type}/")
+shutil.copy("${gene_ranking_file}", f"${params.project_folder}/${params.output_vispr}/${test_type}/{f}") 
 
-// workflow images {
-//   get_images()
-// }
+yaml=f'''experiment: {e}.${test_type}\\n\
+species: ${params.vispr_species}\\n\
+assembly: ${params.vispr_assembly}\\n\
+targets:\\n\
+    results: /vispr/${test_type}/{f}\\n\
+    genes: true\\n\
+sgrnas:\\n\
+    counts: /vispr/counts.count_normalized.txt\\n\
+    mapstats: /vispr/counts.countsummary.txt\\n\
+fastqc:\\n\
+'''
 
-// workflow upload {
-//   if ( 'fastqc_output' in params.keySet() ) {
-//     fastqc_output="${params.fastqc_output}"
-//   } else {
-//     fastqc_output="fastqc_output"
-//   }
-//   upload_paths(fastqc_output)
-// }
+fastqc_files=os.listdir("${params.vispr_fastqc}") 
+fastqc_files=[ s for s in fastqc_files if ".zip" in s ]
+for zip_file in fastqc_files:
+  sample=zip_file.split("_fastqc.zip")[0]
+  folder=zip_file.split(".zip")[0]
+  yaml=f'''{yaml}    {sample}:\\n    - /vispr/fastqc/{folder}/fastqc_data.txt\\n'''
+
+yaml_file=f"${params.project_folder}/${params.output_vispr}/{e}.${test_type}.yaml"
+with open(yaml_file, "w") as fout:
+  fout.write(yaml)
+"""
+}
+
+process provispr_fastqc {
+  stageInMode 'symlink'
+  stageOutMode 'move'
+
+  script:
+"""
+#!/usr/local/bin/python3
+import os
+import shutil
+import zipfile
+
+fastqc_files=os.listdir("${params.vispr_fastqc}") 
+fastqc_files=[ s for s in fastqc_files if ".zip" in s ]
+for zip_file in fastqc_files:
+  sample=zip_file.split("_fastqc.zip")[0]
+  folder=zip_file.split(".zip")[0]
+  if not os.path.isdir("${params.project_folder}/${params.output_vispr}/fastqc/{folder}/") :
+    with zipfile.ZipFile(f"${params.vispr_fastqc}/{zip_file}") as myzip:
+      myzip.extract(f'{folder}/fastqc_data.txt',path=f"${params.project_folder}/${params.output_vispr}/fastqc/")
+"""
+}
+
+process profluterra {
+   stageInMode 'symlink'
+  stageOutMode 'move'
+
+  input:
+    val label
+
+  script:
+  """
+#!/usr/local/bin/Rscript
+library(MAGeCKFlute)
+library(ggplot2)
+FluteRRA("${params.project_folder}/${params.output_test}/${label}.gene_summary.txt", "${params.project_folder}/${params.output_test}/${label}.sgrna_summary.txt", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/" )
+  """
+}
+
+process proflutemle {
+   stageInMode 'symlink'
+  stageOutMode 'move'
+
+  input:
+    val label
+    val cell_lines
+
+  script:
+  """
+#!/usr/local/bin/Rscript
+library(MAGeCKFlute)
+library(ggplot2)
+FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", incorporateDepmap=TRUE ${cell_lines}  )
+  """
+}
+
 
 workflow images {
   get_images()
+}
+
+workflow pre_process{
+   if ( 'mle_matrices' in params.keySet() ) {
+    matrices="${params.mle_matrices}"
+  } else {
+    matrices=""
+  }
+  if ( ! file("${params.renamed_fastq}").isDirectory() ) {
+    file("${params.renamed_fastq}").mkdirs()
+  }
+  prorefile(matrices)
 }
 
 workflow mageck_count {
@@ -670,10 +839,77 @@ workflow mageck_plot {
     file("${params.project_folder}/${params.output_plot}").mkdirs()
   }
   data = channel.fromPath( "${params.project_folder}/${params.output_test}/*.gene_summary.txt" )
+  data = data.filter{ ! file( "$it".replace("${params.output_test}", "${params.output_plot}").replace(".gene_summary.txt",".pdf") ).exists() }
   labels=data.map{ "$it.baseName" }
   labels=labels.map{ "$it".replace(".txt","").replace(".gene_summary","") }
   proplot(data,labels)
 }
 
+
+
+workflow mageck_vispr {
+  if ( ! file("${params.project_folder}/${params.output_vispr}/test").isDirectory() ) {
+    file("${params.project_folder}/${params.output_vispr}/test").mkdirs()
+  }
+  if ( ! file("${params.project_folder}/${params.output_vispr}/mle").isDirectory() ) {
+    file("${params.project_folder}/${params.output_vispr}/mle").mkdirs()
+  }
+
+  if ( ! file("${params.project_folder}/${params.output_vispr}/counts.count_normalized.txt").exists() ) {
+    file("${params.project_folder}/${params.output_count}/counts.count_normalized.txt").copyTo("${params.project_folder}/${params.output_vispr}/counts.count_normalized.txt")
+  }
+  if ( ! file("${params.project_folder}/${params.output_vispr}/counts.countsummary.txt").exists() ) {
+    file("${params.project_folder}/${params.output_count}/counts.countsummary.txt").copyTo("${params.project_folder}/${params.output_vispr}/counts.countsummary.txt")
+  }
+
+  summaries = channel.fromPath( "${params.project_folder}/${params.output_test}/*.gene_summary.txt" )
+  summaries = summaries.filter{ ! file( "$it".replace("${params.output_test}", "${params.output_vispr}").replace(".gene_summary.txt",".test.yaml") ).exists() }
+  summaries_types=summaries.flatMap{ n -> "test"}
+  summaries_ = channel.fromPath( "${params.project_folder}/${params.output_mle}/*.gene_summary.txt" )
+  summaries_ = summaries_.filter{ ! file( "$it".replace("${params.output_mle}", "${params.output_vispr}").replace(".gene_summary.txt",".mle.yaml") ).exists() }
+  summaries_types_=summaries_.flatMap{ n -> "mle"}
+
+  summaries=summaries.concat(summaries_)
+  summaries_types=summaries_types.concat(summaries_types_)
+
+  provispr(summaries,summaries_types)
+
+  if ( ! file("${params.project_folder}/${params.output_vispr}/fastqc").isDirectory() ) {
+    file("${params.project_folder}/${params.output_vispr}/fastqc").mkdirs()
+    provispr_fastqc()
+  }
+
+}
+
+workflow mageck_flute {
+  labels_test=channel.fromPath( "${params.project_folder}/${params.output_test}/*.gene_summary.txt" )
+  labels_test=labels_test.map{ "$it.baseName" }
+  labels_test=labels_test.map{ "$it".replace(".txt","").replace(".gene_summary","") }
+  labels_test.view()
+  profluterra("AJ02_Lib1_Lib2")
+
+  if ( 'depmap' in params.keySet()  ) {
+    if ( ! file("${params.project_folder}/${params.output_mle}/depmap").isDirectory() ) {
+      file("${params.project_folder}/${params.output_mle}/depmap").mkdirs()
+
+    if ( 'depmap_cell_line' in params.keySet()  ) {    
+      depmap_cell_line="${params.depmap_cell_line}".replace(' ', '","')
+      depmap_cell_line=', cell_lines=c("'+depmap_cell_line +'")'
+    } else {
+      depmap_cell_line=', cell_lines = rownames(depmap_similarity)[1], lineages = "All"'
+    }
+
+    labels_mle=channel.fromPath( "${params.project_folder}/${params.output_mle}/*.gene_summary.txt" )
+    labels_mle=labels_mle.map{ "$it.baseName" }
+    labels_mle=labels_mle.map{ "$it".replace(".txt","").replace(".gene_summary","") }
+
+    proflutemle(labels_mle, depmap_cell_line)
+
+    }
+
+
+  }
+
+}
 
 
