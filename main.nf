@@ -158,99 +158,69 @@ process procount {
     """
 }
 
-process pretest {
-  stageInMode 'symlink'
-  stageOutMode 'move'
-
-  input:
-    val samples_tsv
-    val output_test
-    val mageck_test_remove_zero
-    val mageck_test_remove_zero_threshold
-  
-  when:
-    ( ! file("${params.project_folder}/${output_test}/test.preprocess.done").exists() )
-
-  script:
-  """
-#!/usr/local/bin/python3
-import os
-from pathlib import Path
-
-if not os.path.exists("${params.project_folder}/${params.output_test}") :
-  os.makedirs("${params.project_folder}/${params.output_test}")
-
-mageck_test_remove_zero="--remove-zero ${mageck_test_remove_zero}"
-mageck_test_remove_zero_threshold="--remove-zero-threshold ${mageck_test_remove_zero_threshold}"
-
-IDS=""
-with open("${samples_tsv}","r") as samples :
-  for line in samples:
-    line=line.split("\\n")[0]
-    l=line.split(";")
-    label=l[0]
-    paired=l[1]
-    control=l[2].replace(".fastq.gz","")
-    treatment=l[3].replace(".fastq.gz","")
-    control_sgrna=l[4]
-    control_gene=l[5]
-    if control : control=f"-c {control}"
-    if len(l) >= 7:
-      cnv_line=l[6]
-      if cnv_line != "none":
-        cnv_norm=f"--cnv-norm ${params.cnv_file} --cell-line {cnv_line}"
-      elif "${params.cnv_line}" != "none" : 
-        cnv_norm=f"--cnv-norm ${params.cnv_file} --cell-line ${params.cnv_line}"
-      else:
-        cnv_norm=""
-    elif "${params.cnv_line}" != "none" : 
-      cnv_norm=f"--cnv-norm ${params.cnv_file} --cell-line ${params.cnv_line}"
-    else:
-      cnv_norm=""
-    if paired : 
-      paired_testing="--paired"
-    else :
-      paired_testing=""
-    if control_sgrna != "none" : 
-      control_sgrna=f"--control-sgrna {control_sgrna}"
-    else:
-      control_sgrna=""
-    if control_gene != "none" :
-      control_gene=f"--control-gene {control_gene}"
-    else:
-      control_gene=""
-    if control : 
-      pdf=""
-    else :
-      pdf="--pdf-report"
-
-    cmd=f"mageck test {pdf} --normcounts-to-file {mageck_test_remove_zero} {mageck_test_remove_zero_threshold} -k ${params.project_folder}/${params.output_count}/counts.count.txt -t {treatment} {control} -n ${params.project_folder}/${output_test}/{label} {cnv_norm} {paired_testing} {control_sgrna} {control_gene}"
-
-    print(f"Testing {label}")
-    print(f"    control: {control}")
-    print(f"    treatment: {treatment}")
-
-    with open(f"${params.project_folder}/${output_test}/{label}.test.sh", "w" ) as f :
-      f.write(cmd)
-
-Path(f"${params.project_folder}/${output_test}/test.preprocess.done").touch()
-  """
-
-}
-
 process protest {
   stageInMode 'symlink'
   stageOutMode 'move'
 
   input:
-    val sh_script
+    val label
+    val paired
+    val control
+    val treatment
+    val control_sgrna
+    val control_gene
+    val cnv_line
   
   output:
     val "${params.project_folder}/${output_test}", emit: test_output_folder
 
   script:
     """
-    bash ${sh_script}
+    mageck_test_remove_zero="--remove-zero ${params.mageck_test_remove_zero}"
+    mageck_test_remove_zero_threshold="--remove-zero-threshold ${params.mageck_test_remove_zero_threshold}"
+
+    if [ "${control}" != "none"  ]
+      then 
+        control="-c ${control}"
+        pdf=""
+    else
+        pdf="--pdf-report"
+    fi
+    # not really sure about the pdf variable
+
+    if [ "${cnv_line}" != "none" ] 
+      then
+        cnv_norm="--cnv-norm ${params.cnv_file} --cell-line ${cnv_line}"
+    elif [ "${params.cnv_line}" != "none" ]  
+      then
+        cnv_norm="--cnv-norm ${params.cnv_file} --cell-line ${params.cnv_line}"
+    else 
+      cnv_norm=""
+    fi
+
+    if [ "${paired}" == paired ]
+      then
+        paired_testing="--paired"
+    else
+      paired_testing=""
+    fi
+
+    if [ "${control_sgrna}" != "none" ]
+      then
+        control_sgrna="--control-sgrna ${control_sgrna}"
+    else
+      control_sgrna=""
+    fi
+
+    if [ "${control_gene}" != "none" ]
+      then
+        control_gene="--control-gene ${control_gene}"
+    else
+      control_gene=""
+    fi
+
+    mageck test \${pdf} --normcounts-to-file \${mageck_test_remove_zero} \${mageck_test_remove_zero_threshold} -k ${params.project_folder}/${params.output_count}/counts.count.txt -t ${treatment} \${control} -n ${params.project_folder}/${params.output_test}/${label} \${cnv_norm} \${paired_testing} \${control_sgrna} \${control_gene}
+     
     """
 }
 
@@ -779,9 +749,25 @@ workflow mageck_pretest {
 }
 
 workflow mageck_test {
-  data = channel.fromPath( "${params.project_folder}/${params.output_test}/*test.sh" )
-  data = data.filter{ ! file("$it".replace(".test.sh", ".gene_summary.txt") ).exists() }
-  protest( data )
+  if ( ! file("${params.project_folder}/${params.output_test}").isDirectory() ) {
+    file("${params.project_folder}/${params.output_test}").mkdirs()
+  }
+
+  rows=Channel.fromPath("${params.samples_tsv}", checkIfExists:true).splitCsv(sep:';')
+  rows=rows.filter{ ! file( "${params.project_folder}/${params.output_test}/${it[0]}.gene_summary.txt" ).exists() }
+  label=rows.flatMap { n -> n[0] }
+  paired=rows.flatMap { n -> n[1] }
+  control=rows.flatMap { n -> n[2] }
+  control=control.map{ "$it".replace(".fastq.gz","") }
+  treatment=rows.flatMap { n -> n[3] }
+  treatment=treatment.map{ "$it".replace(".fastq.gz","") }
+  control_sgrna=rows.flatMap { n -> n[4] }
+  control_gene=rows.flatMap { n -> n[5] }
+  cnv_line=rows.flatMap { n -> n[6] }
+  cnv_fake=rows.flatMap { n -> "none" }
+  cnv_line=cnv_line.concat(cnv_fake)
+
+  protest( label, paired, control, treatment, control_sgrna, control_gene, cnv_line )
   merge_sumaries( "${params.project_folder}/${params.output_test}/", protest.out.collect() )
 }
 
@@ -812,10 +798,32 @@ workflow mageck_premle {
 }
 
 workflow mageck_mle {
+
+  // rows=Channel.fromPath("${params.samples_tsv}", checkIfExists:true).splitCsv(sep:';')
+  // rows=rows.filter{ ! file( "${params.project_folder}/${params.output_mle}/${it[0]}.gene_summary.txt" ).exists() }
+  // label=rows.flatMap { n -> n[0] }
+  // paired=rows.flatMap { n -> n[1] }
+  // control=rows.flatMap { n -> n[2] }
+  // control=control.map{ "$it".replace(".fastq.gz","") }
+  // treatment=rows.flatMap { n -> n[3] }
+  // treatment=treatment.map{ "$it".replace(".fastq.gz","") }
+  // control_sgrna=rows.flatMap { n -> n[4] }
+  // control_gene=rows.flatMap { n -> n[5] }
+  // cnv_line=rows.flatMap { n -> n[6] }
+  // cnv_fake=rows.flatMap { n -> "none" }
+  // cnv_line=cnv_line.concat(cnv_fake)
+
+  // matrix_control="1,0"
+  // matrix_target="1,1"
+  // betas="base,"+label}
+  // include_samples=control+","+treatment
+
+  // controls=control.replace(",", " ")
+
   data = channel.fromPath( "${params.project_folder}/${params.output_mle}/*mle.sh" )
   data = data.filter{ ! file( "$it".replace(".mle.sh", ".sgrna_summary.txt") ).exists() }
   promle( data )
-  merge_sumaries( "${params.project_folder}/${params.output_mle}/", promle.out.collect() )
+  merge_sumaries( "${params.project_folder}/${params.output_mle}/", promle.out.collect() , sgrna_efficiency , matrices )
 }
 
 workflow mageck_pathway {
