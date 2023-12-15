@@ -29,5 +29,9 @@
   "output_flute":"mageck_output/fastq/flute",
   "mageckflute_organism":"hsa",
   "depmap":"True",
-  "depmap_cell_line":"ACH-000364"
+  "depmap_cell_line":"ACH-000364",
+  "output_magecku":"mageck_output/fastq/magecku",
+  "magecku_fdr":"0.05",
+  "magecku_threshold_control_groups":"5",
+  "magecku_threshold_treatment_groups":"5",
 }
