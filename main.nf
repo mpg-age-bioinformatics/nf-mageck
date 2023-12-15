@@ -746,7 +746,7 @@ import shlex
 import sys
 
 def execute(command):
-    print command
+    print(command)
     subprocess.call(shlex.split(command))
 
 def product_threshold_fdr(df,fdr = 0.05):
@@ -769,6 +769,7 @@ def rank_test(df):
     for gene in genes:
         df_gene = df_targeting[df_targeting['Gene'] == gene].sort_values('p.twosided')
         lfc = df_gene.iloc[:3]['LFC'].mean()
+        print( list(df_gene['p.twosided'])[:3], ntc_sgRNA_p )
         x, pvalue = mannwhitneyu(list(df_gene['p.twosided'])[:3],ntc_sgRNA_p,alternative='two-sided')
         gene_lfc_p[gene] = [lfc,pvalue]
 
@@ -824,7 +825,7 @@ label_all_sig_genes = 1
 
 #print ('plot( 0 or 1 )?: ')
 #make_plot = eval(raw_input('-->'))
-make_plot = eval(1)
+make_plot = eval("1")
 
 if str(gene_list_path) == '0':
     genes_to_label = []
@@ -842,9 +843,9 @@ df_thres = df[(df[control_groups] > control_thres).all(axis=1)&(df[treatment_gro
 df_thres.to_csv(output_folder+'/%s_thresholded_counts.txt'%output_name,sep='\\t',index=False)
 
 # MAGeCK
-print "running MAGeCK....."
+print("running MAGeCK.....")
 execute("mageck test -k " + output_folder+'/%s_thresholded_counts.txt'%output_name + " -t "+ treatment_group + " -c " + control_group + " -n " + output_folder + "/" + output_name + " --pdf-report")
-print "running u test....."
+print("running u test.....")
 # u test
 df_mageck = pd.read_table(output_folder + "/" + output_name + '.sgrna_summary.txt')
 df = pd.DataFrame(rank_test(df_mageck)).T
@@ -867,7 +868,7 @@ df_ntc = df[df['index'].str.contains('NTC')]
 ########### volcano plot
 if make_plot == 1:
 
-    print "plotting...."
+    print("plotting....")
     npg = ["#E64B35B2","#4DBBD5B2", "#00A087B2", "#3C5488B2", "#F39B7FB2", "#8491B4B2", "#91D1C2B2", "#DC0000B2", "#7E6148B2"]
     plt.figure(figsize=[10,8])
     df_pos = df_hits[df_hits['epsilon']>0]
@@ -962,18 +963,22 @@ workflow mageck_test {
 }
 
 workflow magecku {
-  if ( ! file("${params.project_folder}/${params.output_magecku}").isDirectory() ) {
-    file("${params.project_folder}/${params.output_magecku}").mkdirs()
-  }
-  rows=Channel.fromPath("${params.samples_tsv}", checkIfExists:true).splitCsv(sep:';')
-  rows=rows.filter{ ! file( "${params.project_folder}/${params.output_magecku}/${it[0]}_volcano_plot.pdf" ).exists() }
-  label=rows.flatMap { n -> n[0] }
-  control=rows.flatMap { n -> n[2] }
-  control=control.map{ "$it".replace(".fastq.gz","") }
-  treatment=rows.flatMap { n -> n[3] }
-  treatment=treatment.map{ "$it".replace(".fastq.gz","") }
+  if ( 'output_magecku' in params.keySet() ) {
+    if ( ! file("${params.project_folder}/${params.output_magecku}").isDirectory() ) {
+      file("${params.project_folder}/${params.output_magecku}").mkdirs()
+    }
+    rows=Channel.fromPath("${params.samples_tsv}", checkIfExists:true).splitCsv(sep:';')
+    rows=rows.filter{ ! file( "${params.project_folder}/${params.output_magecku}/${it[0]}_volcano_plot.pdf" ).exists() }
+    label=rows.flatMap { n -> n[0] }
+    control=rows.flatMap { n -> n[2] }
+    control=control.map{ "$it".replace(".fastq.gz","") }
+    treatment=rows.flatMap { n -> n[3] }
+    treatment=treatment.map{ "$it".replace(".fastq.gz","") }
+    // non-targeting needs to be written on the gene name of the non-targeting sgRNAs as they are used as controls
+    promagecku ( label, control, treatment )
 
-  promagecku ( label, control, treatment )
+  }
+
 }
 
 // workflow mageck_ssc {
