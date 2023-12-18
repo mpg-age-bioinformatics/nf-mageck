@@ -1029,11 +1029,12 @@ workflow mageck_mle {
   // include_samples=control+","+treatment
 
   // controls=control.replace(",", " ")
-
-  data = channel.fromPath( "${params.project_folder}/${params.output_mle}/*mle.sh" )
-  data = data.filter{ ! file( "$it".replace(".mle.sh", ".sgrna_summary.txt") ).exists() }
-  promle( data )
-  merge_sumaries( "${params.project_folder}/${params.output_mle}/", promle.out.collect() , sgrna_efficiency , matrices )
+  if ( 'output_mle' in params.keySet() ) {
+    data = channel.fromPath( "${params.project_folder}/${params.output_mle}/*mle.sh" )
+    data = data.filter{ ! file( "$it".replace(".mle.sh", ".sgrna_summary.txt") ).exists() }
+    promle( data )
+    merge_sumaries( "${params.project_folder}/${params.output_mle}/", promle.out.collect() , sgrna_efficiency , matrices )
+  }
 }
 
 workflow mageck_pathway {
@@ -1103,8 +1104,7 @@ workflow mageck_flute {
   labels_test=channel.fromPath( "${params.project_folder}/${params.output_test}/*.gene_summary.txt" )
   labels_test=labels_test.map{ "$it.baseName" }
   labels_test=labels_test.map{ "$it".replace(".txt","").replace(".gene_summary","") }
-  labels_test.view()
-  profluterra("AJ02_Lib1_Lib2")
+  profluterra(labels_test)
 
   if ( 'depmap' in params.keySet()  ) {
     if ( ! file("${params.project_folder}/${params.output_mle}/depmap").isDirectory() ) {
@@ -1124,7 +1124,6 @@ workflow mageck_flute {
     proflutemle(labels_mle, depmap_cell_line)
 
     }
-
 
   }
 
