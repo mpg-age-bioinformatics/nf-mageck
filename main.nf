@@ -759,8 +759,8 @@ def product_threshold_fdr(df,fdr = 0.05):
 
 def rank_test(df):
     df = df[df['treat_mean'] > 20]
-    df_ntc = df[df['Gene'].str.contains('non-targeting')]
-    df_targeting =  df[~df['Gene'].str.contains('non-targeting')]  
+    df_ntc = df[df['Gene'].str.contains('${params.nontargeting_tag}')]
+    df_targeting =  df[~df['Gene'].str.contains('${params.nontargeting_tag}')]  
     ntc_sgRNA_p = list(df_ntc['p.twosided'])
     ntc_sgRNA_p_lfc = zip(list(df_ntc['p.twosided']),list(df_ntc['LFC']))
     genes = df_targeting['Gene'].unique()
