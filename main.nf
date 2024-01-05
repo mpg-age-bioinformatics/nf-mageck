@@ -699,10 +699,10 @@ process profluterra {
 
   script:
   """
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
 library(MAGeCKFlute)
 library(ggplot2)
-FluteRRA("${params.project_folder}/${params.output_test}/${label}.gene_summary.txt", "${params.project_folder}/${params.output_test}/${label}.sgrna_summary.txt", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/" )
+FluteRRA("${params.project_folder}/${params.output_test}/${label}.gene_summary.txt", "${params.project_folder}/${params.output_test}/${label}.sgrna_summary.txt", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/", omitEssential=FALSE)
   """
 }
 
@@ -716,7 +716,7 @@ process proflutemle {
 
   script:
   """
-#!/usr/local/bin/Rscript
+#!/usr/bin/Rscript
 library(MAGeCKFlute)
 library(ggplot2)
 FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", incorporateDepmap=TRUE ${cell_lines}  )
@@ -1033,7 +1033,7 @@ workflow mageck_mle {
     data = channel.fromPath( "${params.project_folder}/${params.output_mle}/*mle.sh" )
     data = data.filter{ ! file( "$it".replace(".mle.sh", ".sgrna_summary.txt") ).exists() }
     promle( data )
-    merge_sumaries( "${params.project_folder}/${params.output_mle}/", promle.out.collect() , sgrna_efficiency , matrices )
+    merge_sumaries( "${params.project_folder}/${params.output_mle}/", promle.out.collect() )
   }
 }
 
