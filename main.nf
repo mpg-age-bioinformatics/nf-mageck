@@ -700,6 +700,7 @@ process profluterra {
   script:
   """
 #!/usr/bin/Rscript
+unlink("~/.cache/R/ExperimentHub" recursive = TRUE)
 library(MAGeCKFlute)
 library(ggplot2)
 FluteRRA("${params.project_folder}/${params.output_test}/${label}.gene_summary.txt", "${params.project_folder}/${params.output_test}/${label}.sgrna_summary.txt", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/", omitEssential=FALSE)
@@ -717,6 +718,7 @@ process proflutemle {
   script:
   """
 #!/usr/bin/Rscript
+unlink("~/.cache/R/ExperimentHub" recursive = TRUE)
 library(MAGeCKFlute)
 library(ggplot2)
 FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", incorporateDepmap=TRUE ${cell_lines}  )
