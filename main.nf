@@ -80,11 +80,13 @@ df.to_csv("${params.project_folder}/samples.tsv", sep=";", index=False, header=F
 
 # if mle model tables in reference file
 sheets=[ s for s in EXC.sheet_names if "mle" in s ]
+
 if matrices :
-  for s in sheets:
-      new_name=s.split("mle.")[-1].replace(" ","_").replace(".","_")
-      if not os.path.isfile("${matrices}/matrix."+new_name+".tsv"):
-          df=EXC.parse(s)
+  mat_files=os.listdir(matrices)
+  for s in mat_files:
+      new_name=s.split(".xlsx")[0]
+      if not os.path.isfile("${matrices}/mat."+new_name+".tsv"):
+          df=pd.read_excel(matrices+"/"+s)
           matrix=df[~df["Samples"].isin(["sgrnas","genes"])]
           controls=df[df["Samples"].isin(["sgrnas","genes"])]
           matrix.to_csv("${matrices}/mat."+new_name+".tsv",sep="\\t",index=False)
