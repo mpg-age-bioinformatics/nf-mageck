@@ -292,6 +292,7 @@ process premle {
     """
 #!/usr/local/bin/python3
 import os
+import pandas as pd
 from pathlib import Path
 
 matrices="${matrices}"
