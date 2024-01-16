@@ -190,10 +190,10 @@ process protest {
     fi
     # not really sure about the pdf variable
 
-    if [ "${cnv_line}" != "none" ] 
+    if [ "${cnv_line}" != "" ]
       then
         cnv_norm="--cnv-norm ${params.cnv_file} --cell-line ${cnv_line}"
-    elif [ "${params.cnv_line}" != "none" ]  
+    elif [ "${params.cnv_line}" != "null" ]  
       then
         cnv_norm="--cnv-norm ${params.cnv_file} --cell-line ${params.cnv_line}"
     else 
@@ -325,13 +325,13 @@ with open("${params.samples_tsv}","r") as samples :
 
     if len(l) >= 7:
       cnv_line=l[6]
-      if cnv_line != "none":
+      if cnv_line != "":
         cnv_norm=f"--cnv-norm ${params.cnv_file} --cell-line {cnv_line}"
-      elif "${params.cnv_line}" != "none" : 
+      elif "${params.cnv_line}" != "null" : 
         cnv_norm=f"--cnv-norm ${params.cnv_file} --cell-line ${params.cnv_line}"
       else:
         cnv_norm=""
-    elif "${params.cnv_line}" != "none" : 
+    elif "${params.cnv_line}" != "null" : 
       cnv_norm=f"--cnv-norm ${params.cnv_file} --cell-line ${params.cnv_line}"
     else:
       cnv_norm=""
@@ -385,13 +385,13 @@ if matrices:
 
     if "cnv_line" in df[0].tolist():
       cnv_line=df.loc[ df[0]=="cnv_line", 1].values[0]
-      if cnv_line != "none":
+      if cnv_line != "":
         cnv_norm=f"--cnv-norm ${params.cnv_file} --cell-line {cnv_line}"
-      elif "${params.cnv_line}" != "none" : 
+      elif "${params.cnv_line}" != "null" : 
         cnv_norm=f"--cnv-norm ${params.cnv_file} --cell-line ${params.cnv_line}"
       else:
         cnv_norm=""
-    elif "${params.cnv_line}" != "none" : 
+    elif "${params.cnv_line}" != "null" : 
       cnv_norm=f"--cnv-norm ${params.cnv_file} --cell-line ${params.cnv_line}"
     else:
       cnv_norm=""
@@ -702,7 +702,7 @@ process profluterra {
   script:
   """
 #!/usr/bin/Rscript
-unlink("~/.cache/R/ExperimentHub" recursive = TRUE)
+unlink(file.path("/u", system("whoami", intern=TRUE), ".cache", "R", "ExperimentHub"), recursive = TRUE)
 library(MAGeCKFlute)
 library(ggplot2)
 FluteRRA("${params.project_folder}/${params.output_test}/${label}.gene_summary.txt", "${params.project_folder}/${params.output_test}/${label}.sgrna_summary.txt", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/", omitEssential=FALSE)
@@ -720,7 +720,7 @@ process proflutemle {
   script:
   """
 #!/usr/bin/Rscript
-unlink("~/.cache/R/ExperimentHub" recursive = TRUE)
+unlink(file.path("/u", system("whoami", intern=TRUE), ".cache", "R", "ExperimentHub"), recursive = TRUE)
 library(MAGeCKFlute)
 library(ggplot2)
 FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", incorporateDepmap=TRUE ${cell_lines}  )
