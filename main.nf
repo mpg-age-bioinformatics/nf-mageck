@@ -703,7 +703,7 @@ process profluterra {
   script:
   """
 #!/bin/bash
-rm -rf "/u/$USER/.cache/R/ExperimentHub"
+rm -rf /u/$USER/.cache/R/ExperimentHub
 /usr/bin/Rscript -e '
 library(MAGeCKFlute)
 library(ggplot2)
@@ -723,7 +723,7 @@ process proflutemle {
   script:
   """
 #!/bin/bash
-rm -rf "/u/$USER/.cache/R/ExperimentHub"
+rm -rf /u/$USER/.cache/R/ExperimentHub
 /usr/bin/Rscript -e '
 library(MAGeCKFlute)
 library(ggplot2)
