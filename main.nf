@@ -83,6 +83,8 @@ sheets=[ s for s in EXC.sheet_names if "mle" in s ]
 
 if matrices :
   mat_files=os.listdir(matrices)
+  mat_files=[s for s in mat_files if ".xlsx" in s]
+  print(mat_files)
   for s in mat_files:
       new_name=s.split(".xlsx")[0]
       if not os.path.isfile("${matrices}/mat."+new_name+".tsv"):
