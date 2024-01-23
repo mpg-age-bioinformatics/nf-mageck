@@ -696,7 +696,8 @@ for zip_file in fastqc_files:
 }
 
 process profluterra {
-   stageInMode 'symlink'
+  maxForks 1
+  stageInMode 'symlink'
   stageOutMode 'move'
 
   input:
@@ -704,17 +705,15 @@ process profluterra {
 
   script:
   """
-#!/bin/bash
-rm -rf /u/$USER/.cache/R/ExperimentHub
-/usr/bin/Rscript -e '
+#!/usr/bin/Rscript
 library(MAGeCKFlute)
 library(ggplot2)
 FluteRRA("${params.project_folder}/${params.output_test}/${label}.gene_summary.txt", "${params.project_folder}/${params.output_test}/${label}.sgrna_summary.txt", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/", omitEssential=FALSE)
-'
   """
 }
 
 process proflutemle {
+  maxForks 1
   stageInMode 'symlink'
   stageOutMode 'move'
 
@@ -724,13 +723,10 @@ process proflutemle {
 
   script:
   """
-#!/bin/bash
-rm -rf /u/$USER/.cache/R/ExperimentHub
-/usr/bin/Rscript -e '
+#!/usr/bin/Rscript
 library(MAGeCKFlute)
 library(ggplot2)
 FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", incorporateDepmap=TRUE ${cell_lines}  )
-'
   """
 }
 
@@ -773,7 +769,7 @@ def rank_test(df):
     df_ntc = df[df['Gene'].str.contains('${params.nontargeting_tag}')]
     df_targeting =  df[~df['Gene'].str.contains('${params.nontargeting_tag}')]  
     ntc_sgRNA_p = list(df_ntc['p.twosided'])
-    ntc_sgRNA_p_lfc = zip(list(df_ntc['p.twosided']),list(df_ntc['LFC']))
+    ntc_sgRNA_p_lfc = list(zip(list(df_ntc['p.twosided']),list(df_ntc['LFC'])))
     genes = df_targeting['Gene'].unique()
     num_of_genes = len(genes)
     gene_lfc_p = {}
