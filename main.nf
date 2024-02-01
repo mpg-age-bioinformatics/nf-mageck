@@ -399,7 +399,14 @@ if matrices:
     else:
       cnv_norm=""
 
-    cmd=f"mageck mle -k ${params.project_folder}/${params.output_count}/counts.count.txt -d f"'{matrices}/{mat}'" -n ${params.project_folder}/${params.output_mle}/{label}_matrix {control_sgrna} {control_gene} {cnv_norm} --threads=10 ${sgrna_efficiency}"
+    cmd = (
+    f"mageck mle "
+    f"-k ${params.project_folder}/${params.output_count}/counts.count.txt "
+    f"-d '{matrices}/{mat}' "
+    f"-n ${params.project_folder}/${params.output_mle}/{label}_matrix "
+    f"{control_sgrna} {control_gene} {cnv_norm} "
+    f"--threads=10 ${sgrna_efficiency}"
+    )
 
     print(f"Testing from matrix file {label}")
     print(f"    cmd: {cmd}")
