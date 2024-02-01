@@ -180,9 +180,15 @@ process protest {
 
   script:
     """
-    mageck_test_remove_zero="--remove-zero ${params.mageck_test_remove_zero}"
-    mageck_test_remove_zero_threshold="--remove-zero-threshold ${params.mageck_test_remove_zero_threshold}"
-
+    if [ "${params.mageck_test_remove_zero}" == "none" ]
+      then
+        mageck_test_remove_zero="--remove-zero ${params.mageck_test_remove_zero}"
+        mageck_test_remove_zero_threshold=""
+    else
+        mageck_test_remove_zero="--remove-zero ${params.mageck_test_remove_zero}"
+        mageck_test_remove_zero_threshold="--remove-zero-threshold ${params.mageck_test_remove_zero_threshold}"
+    fi
+    
     if [ "${control}" != "none"  ]
       then 
         control="-c ${control}"
