@@ -100,6 +100,8 @@ samples = samples_file.read()
 samples_file.close()
 raw_folder = "${params.raw_fastq}"
 renamed_folder = "${params.renamed_fastq}"
+if not os.path.isdir( renamed_folder ):
+    os.makedirs(renamed_folder)
 # if sample names were given without fastq.gz ending. add it
 if not 'fastq.gz' in sampleNames.loc[0,1]:
     sampleNames[2] = sampleNames[1] + ['.fastq.gz']
