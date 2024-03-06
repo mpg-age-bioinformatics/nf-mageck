@@ -41,14 +41,18 @@ process prorefile{
   input:
     val matrices
 
-  when:
-    ( ! file("${params.project_folder}/samples_renamed.tsv").exists() )
+  // when:
+  //   ( ! file("${params.project_folder}/samples_renamed.tsv").exists() )
 
   script:
   """
 #!/usr/local/bin/python3
 import pandas as pd
 import os
+
+print("Starting")
+import sys
+sys.stdout.flush()
 
 matrices="${matrices}"
 
@@ -108,9 +112,11 @@ if not 'fastq.gz' in sampleNames.loc[0,1]:
 else:
     sampleNames[2] = sampleNames[1]
 
+print(sampleNames)
 for index, row in sampleNames.iterrows():
     if not os.path.exists(renamed_folder+"/"+row[2]):
         os.symlink(raw_folder+"/"+row[0], renamed_folder+"/"+row[2])
+        print(renamed_folder+"/"+row[2])
     # replace names also in other files, this might be unnesseccary later on
     samples = samples.replace(row[1], row[2])
 
@@ -156,11 +162,11 @@ process procount {
         done
     fi
 
-    mkdir -p ${project_folder}/${output_count}
+    mkdir -p ${params.project_folder}/${output_count}
 
-    echo "library: ${library}\noutput_count: ${project_folder}/${output_count}"
+    echo "library: ${library}\noutput_count: ${params.project_folder}/${output_count}"
 
-    mageck count --pdf-report -l ${library} -n ${project_folder}/${output_count}/counts --sample-label "\${samples:1}" --fastq \${input_files}
+    mageck count --pdf-report -l ${library} -n ${params.project_folder}/${output_count}/counts --sample-label "\${samples:1}" --fastq \${input_files}
     """
 }
 
