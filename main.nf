@@ -785,10 +785,15 @@ def product_threshold_fdr(df,fdr = 0.05):
             break
     return pro, df_thres
 
-def rank_test(df):
+def rank_test(df, control_genes ):
     df = df[df['treat_mean'] > 20]
-    df_ntc = df[df['Gene'].str.contains('${params.nontargeting_tag}')]
-    df_targeting =  df[~df['Gene'].str.contains('${params.nontargeting_tag}')]  
+
+    #df_ntc = df[df['Gene'].str.contains('${params.nontargeting_tag}')]
+    #df_targeting =  df[~df['Gene'].str.contains('${params.nontargeting_tag}')]  
+
+    df_ntc = df[df['Gene'].isin(control_genes)]
+    df_targeting =  df[~df['Gene'].isin(control_genes)]
+
     ntc_sgRNA_p = list(df_ntc['p.twosided'])
     ntc_sgRNA_p_lfc = list(zip(list(df_ntc['p.twosided']),list(df_ntc['LFC'])))
     genes = df_targeting['Gene'].unique()
@@ -876,7 +881,9 @@ execute("mageck test -k " + output_folder+'/%s_thresholded_counts.txt'%output_na
 print("running u test.....")
 # u test
 df_mageck = pd.read_table(output_folder + "/" + output_name + '.sgrna_summary.txt')
-df = pd.DataFrame(rank_test(df_mageck)).T
+df_library=pd.read_excel( "${params.project_folder}/library.xls" )
+control_genes=df_library[df_library['Annotation'].str.contains('${params.nontargeting_tag}')]["gene_ID"].tolist()
+df = pd.DataFrame(rank_test(df_mageck, control_genes)).T
 df.columns = ['epsilon','pvalue']
 df.reset_index(inplace=True)
 df['gene'] = df['index'].apply(lambda x:x.split('_')[0])
