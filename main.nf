@@ -572,46 +572,44 @@ fgseaPosScore = fgseaPosScore[order(fgseaPosScore[, 'padj'], decreasing = FALSE)
 # save data
 write.xlsx(fgseaNegScore, file=paste0("${params.project_folder}/${params.output_pathway}/", label, ".neg.fgsea.xlsx"), row.names = FALSE)
 write.xlsx(fgseaPosScore, file=paste0("${params.project_folder}/${params.output_pathway}/", label, ".pos.fgsea.xlsx"), row.names = FALSE)
-# Vizualise 
+# visualize 
 dir.create(paste0("${params.project_folder}/${params.output_pathway}/", label), showWarnings = FALSE)
 # Negative
 sigNeg = subset(fgseaNegScore, padj <= 0.2)
-#for(i in 1:nrow(sigNeg)){
-for(i in 1:2){
+for(i in 1:nrow(sigNeg)){
   P = as.character(sigNeg[i,'pathway'])
   p = plotEnrichment(gmt_file[[P]], genelist_negScore) + labs(title=P)
   ggsave(paste0("neg.", P, '.pdf'), path = paste0("${params.project_folder}/${params.output_pathway}/", label), width = 10, height = 6)
   
   # exctract gene names for flaski
-  #plot_data = p[['data']]
-  #a = plot_data[seq(3, nrow(plot_data), 2), 'x']
-  ## sort genelist
-  #rnk <- rank(-genelist_negScore)
-  #ord <- order(rnk)
-  #statsAdj <- genelist_negScore[ord]
+  plot_data = p[['data']]
+  a = plot_data[seq(3, nrow(plot_data), 2), 1][[1]]
+  # sort genelist
+  rnk <- rank(-genelist_negScore)
+  ord <- order(rnk)
+  statsAdj <- genelist_negScore[ord]
   
-  #plot_data[seq(3, nrow(plot_data), 2), 'label'] = names(statsAdj)[a]
-  #write.xlsx(plot_data, paste0("${params.project_folder}/${params.output_pathway}/", label, "/neg.", P, '.xlsx'), row.names = FALSE)
+  plot_data[seq(3, nrow(plot_data), 2), 'label'] = names(statsAdj)[a]
+  write.xlsx(plot_data, paste0("${params.project_folder}/${params.output_pathway}/", label, "/neg.", P, '.xlsx'), row.names = FALSE)
  }
 # Positive
 sigPos = subset(fgseaPosScore, padj <= 0.2)
-#for(i in 1:nrow(sigPos)){
-for(i in 1:2){
+for(i in 1:nrow(sigPos)){
   P = as.character(sigPos[i,'pathway'])
   p = plotEnrichment(gmt_file[[P]], genelist_posScore) + labs(title=P)
   ggsave(paste0("pos.", P, '.pdf'), path = paste0("${params.project_folder}/${params.output_pathway}/", label), width = 10, height = 6)
 
-  ## exctract gene names for flaski
-  #plot_data = p[['data']]
-  #a = plot_data[seq(3, nrow(plot_data), 2), 'x']
-  ## sort genelist
-  #rnk <- rank(-genelist_posScore)
-  #ord <- order(rnk)
-  #statsAdj <- genelist_posScore[ord]
-  #plot_data[seq(3, nrow(plot_data), 2), 'label'] = names(statsAdj)[a]
-  #write.xlsx(plot_data, paste0("${params.project_folder}/${params.output_pathway}/", label, "/pos.", P, '.xlsx'), row.names = FALSE)
+  # exctract gene names for flaski
+  plot_data = p[['data']]
+  a = plot_data[seq(3, nrow(plot_data), 2), 1][[1]]
+  # sort genelist
+  rnk <- rank(-genelist_posScore)
+  ord <- order(rnk)
+  statsAdj <- genelist_posScore[ord]
+  plot_data[seq(3, nrow(plot_data), 2), 'label'] = names(statsAdj)[a]
+  write.xlsx(plot_data, paste0("${params.project_folder}/${params.output_pathway}/", label, "/pos.", P, '.xlsx'), row.names = FALSE)
 }
-
+sessionInfo()
   """
 
 }
