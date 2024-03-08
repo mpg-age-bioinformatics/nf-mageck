@@ -881,7 +881,7 @@ execute("mageck test -k " + output_folder+'/%s_thresholded_counts.txt'%output_na
 print("running u test.....")
 # u test
 df_mageck = pd.read_table(output_folder + "/" + output_name + '.sgrna_summary.txt')
-df_library=pd.read_excel( "${params.project_folder}/library.xls" )
+df_library=pd.read_excel( "${params.project_folder}/library.xlsx" )
 control_genes=df_library[df_library['Annotation'].str.contains('${params.nontargeting_tag}')]["gene_ID"].tolist()
 df = pd.DataFrame(rank_test(df_mageck, control_genes)).T
 df.columns = ['epsilon','pvalue']
