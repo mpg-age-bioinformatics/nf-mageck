@@ -1022,22 +1022,25 @@ workflow magecku {
 // }
 
 workflow mageck_premle {
-  if ( 'efficiency_matrix' in params.keySet() ) {
-    pressc(  )
-    prossc( pressc.out.collect() )
-    sgrna_efficiency="--sgrna-efficiency ${params.project_folder}/${params.output_mle}/library.eff.txt --sgrna-eff-name-column 1 --sgrna-eff-score-column 3"
-  } else {
-    sgrna_efficiency=""
+  if ( "${params.skip_mle}" != "True" ) {
+
+    if ( 'efficiency_matrix' in params.keySet() ) {
+      pressc(  )
+      prossc( pressc.out.collect() )
+      sgrna_efficiency="--sgrna-efficiency ${params.project_folder}/${params.output_mle}/library.eff.txt --sgrna-eff-name-column 1 --sgrna-eff-score-column 3"
+    } else {
+      sgrna_efficiency=""
+    }
+
+    if ( 'mle_matrices' in params.keySet() ) {
+      matrices="${params.mle_matrices}"
+    } else {
+      matrices=""
+    }
+
+    premle(sgrna_efficiency, matrices)
+
   }
-
-  if ( 'mle_matrices' in params.keySet() ) {
-    matrices="${params.mle_matrices}"
-  } else {
-    matrices=""
-  }
-
-  premle(sgrna_efficiency, matrices)
-
 }
 
 workflow mageck_mle {
@@ -1062,11 +1065,13 @@ workflow mageck_mle {
   // include_samples=control+","+treatment
 
   // controls=control.replace(",", " ")
-  if ( 'output_mle' in params.keySet() ) {
-    data = channel.fromPath( "${params.project_folder}/${params.output_mle}/*mle.sh" )
-    data = data.filter{ ! file( "$it".replace(".mle.sh", ".sgrna_summary.txt") ).exists() }
-    promle( data )
-    merge_sumaries( "${params.project_folder}/${params.output_mle}/", promle.out.collect() )
+  if ( "${params.skip_mle}" != "True" ) {
+    if ( 'output_mle' in params.keySet() ) {
+      data = channel.fromPath( "${params.project_folder}/${params.output_mle}/*mle.sh" )
+      data = data.filter{ ! file( "$it".replace(".mle.sh", ".sgrna_summary.txt") ).exists() }
+      promle( data )
+      merge_sumaries( "${params.project_folder}/${params.output_mle}/", promle.out.collect() )
+    }
   }
 }
 
@@ -1134,32 +1139,34 @@ workflow mageck_vispr {
 }
 
 workflow mageck_flute {
-  labels_test=channel.fromPath( "${params.project_folder}/${params.output_test}/*.gene_summary.txt" )
-  labels_test=labels_test.map{ "$it.baseName" }
-  labels_test=labels_test.map{ "$it".replace(".txt","").replace(".gene_summary","") }
-  profluterra(labels_test)
+  if ( "${params.skip_mle}" != "True" ) {
 
-  if ( 'depmap' in params.keySet()  ) {
-    if ( ! file("${params.project_folder}/${params.output_mle}/depmap").isDirectory() ) {
-      file("${params.project_folder}/${params.output_mle}/depmap").mkdirs()
+    labels_test=channel.fromPath( "${params.project_folder}/${params.output_test}/*.gene_summary.txt" )
+    labels_test=labels_test.map{ "$it.baseName" }
+    labels_test=labels_test.map{ "$it".replace(".txt","").replace(".gene_summary","") }
+    profluterra(labels_test)
 
-    if ( 'depmap_cell_line' in params.keySet()  ) {    
-      depmap_cell_line="${params.depmap_cell_line}".replace(' ', '","')
-      depmap_cell_line=', cell_lines=c("'+depmap_cell_line +'")'
-    } else {
-      depmap_cell_line=', cell_lines = rownames(depmap_similarity)[1], lineages = "All"'
+    if ( 'depmap' in params.keySet()  ) {
+      if ( ! file("${params.project_folder}/${params.output_mle}/depmap").isDirectory() ) {
+        file("${params.project_folder}/${params.output_mle}/depmap").mkdirs()
+
+      if ( 'depmap_cell_line' in params.keySet()  ) {    
+        depmap_cell_line="${params.depmap_cell_line}".replace(' ', '","')
+        depmap_cell_line=', cell_lines=c("'+depmap_cell_line +'")'
+      } else {
+        depmap_cell_line=', cell_lines = rownames(depmap_similarity)[1], lineages = "All"'
+      }
+
+      labels_mle=channel.fromPath( "${params.project_folder}/${params.output_mle}/*.gene_summary.txt" )
+      labels_mle=labels_mle.map{ "$it.baseName" }
+      labels_mle=labels_mle.map{ "$it".replace(".txt","").replace(".gene_summary","") }
+
+      proflutemle(labels_mle, depmap_cell_line)
+
+      }
+
     }
-
-    labels_mle=channel.fromPath( "${params.project_folder}/${params.output_mle}/*.gene_summary.txt" )
-    labels_mle=labels_mle.map{ "$it.baseName" }
-    labels_mle=labels_mle.map{ "$it".replace(".txt","").replace(".gene_summary","") }
-
-    proflutemle(labels_mle, depmap_cell_line)
-
-    }
-
   }
-
 }
 
 
