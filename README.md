@@ -7,7 +7,7 @@ nextflow run mpg-age-bioinformatics/nf-mageck -r 1.0.0 -params-file params.json
 or
 ```
 git clone https://github.com/mpg-age-bioinformatics/nf-mageck.git
-nextflow run nf-acer -params-file params.json
+nextflow run nf-mageck -params-file params.json
 ```
 
 ## Contributing
