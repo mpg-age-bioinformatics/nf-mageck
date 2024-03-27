@@ -783,6 +783,12 @@ def product_threshold_fdr(df,fdr = 0.05):
             break
     return pro, df_thres
 
+def rank_test_(gene,ntc_sgRNA_p,df_targeting):
+    df_gene = df_targeting[df_targeting['Gene'] == gene].sort_values('p.twosided')
+    lfc = df_gene.iloc[:3]['LFC'].mean()
+    x, pvalue = mannwhitneyu(list(df_gene['p.twosided'])[:3],ntc_sgRNA_p,alternative='two-sided')
+    return f"{lfc},{pvalue}" 
+
 def rank_test(df, control_genes ):
     df = df[df['treat_mean'] > 20]
 
@@ -796,22 +802,59 @@ def rank_test(df, control_genes ):
     ntc_sgRNA_p_lfc = list(zip(list(df_ntc['p.twosided']),list(df_ntc['LFC'])))
     genes = df_targeting['Gene'].unique()
     num_of_genes = len(genes)
+
+    # parallel approach
     gene_lfc_p = {}
-    for gene in genes:
+    genes=pd.DataFrame({"gene":genes})
+
+    def rank_test_(gene,ntc_sgRNA_p=ntc_sgRNA_p,df_targeting=df_targeting):
         df_gene = df_targeting[df_targeting['Gene'] == gene].sort_values('p.twosided')
         lfc = df_gene.iloc[:3]['LFC'].mean()
-        print( list(df_gene['p.twosided'])[:3], ntc_sgRNA_p )
         x, pvalue = mannwhitneyu(list(df_gene['p.twosided'])[:3],ntc_sgRNA_p,alternative='two-sided')
-        gene_lfc_p[gene] = [lfc,pvalue]
+        return f"{lfc},{pvalue}" 
 
+    genes["lfc_pvalue"]=genes["gene"].apply(lamdba gene : rank_test_(gene) )
+    lfc_pvalue=[ [ float( s.split(",")[0] ),   float( s.split(",")[1] ) ] for s in  genes["lfc_pvalue"].tolist() ]
+    genes=genes["gene"].tolist()
+    # gene_lfc_p=dict(zip(genes, lfc_pvalue ))
+
+    # serial approach
+    #for gene in genes:
+    #    df_gene = df_targeting[df_targeting['Gene'] == gene].sort_values('p.twosided')
+    #    lfc = df_gene.iloc[:3]['LFC'].mean()
+    #    print( list(df_gene['p.twosided'])[:3], ntc_sgRNA_p )
+    #    x, pvalue = mannwhitneyu(list(df_gene['p.twosided'])[:3],ntc_sgRNA_p,alternative='two-sided')
+    #    gene_lfc_p[gene] = [lfc,pvalue]
+
+    # parallel approach
     random.seed(10)
-    for j in range(num_of_genes):
+    def ntc_i( ntc_sgRNA_p=ntc_sgRNA_p, ntc_sgRNA_p_lfc=ntc_sgRNA_p_lfc ):
         shuffle(ntc_sgRNA_p_lfc)
         ntc_selected = ntc_sgRNA_p_lfc[:5]
         ntc_selected_p = [i[0] for i in ntc_selected]
         ntc_lfc = np.mean([i[1] for i in sorted(ntc_selected, key=lambda x: x[0])][:3])
         x, ntc_pvalue = mannwhitneyu(ntc_selected_p,ntc_sgRNA_p,alternative='two-sided')
-        gene_lfc_p['NTC_' + str(j)] = [ntc_lfc, ntc_pvalue]
+        return f"{ntc_lfc},{ntc_pvalue}" 
+
+    num_of_genes=pd.DataFrame( { "j":range(num_of_genes) } )
+    num_of_genes["lfc_pvalue"]=num_of_genes["j"].apply(lamdba x: ntc_i() )
+    lfc_pvalue_=[ [ float( s.split(",")[0] ),   float( s.split(",")[1] ) ] for s in  num_of_genes["lfc_pvalue"].tolist() ]
+    num_of_genes=num_of_genes["j"].tolist()
+    num_of_genes=[ 'NTC_' + str(j) for j in num_of_genes ]
+    
+    gene_lfc_p=dict(zip( genes + num_of_genes , lfc_pvalue + lfc_pvalue_ ))
+
+    # serial approach
+    #random.seed(10)
+    #for j in range(num_of_genes):
+    #    shuffle(ntc_sgRNA_p_lfc)
+    #    ntc_selected = ntc_sgRNA_p_lfc[:5]
+    #    ntc_selected_p = [i[0] for i in ntc_selected]
+    #    ntc_lfc = np.mean([i[1] for i in sorted(ntc_selected, key=lambda x: x[0])][:3])
+    #    x, ntc_pvalue = mannwhitneyu(ntc_selected_p,ntc_sgRNA_p,alternative='two-sided')
+    #    gene_lfc_p['NTC_' + str(j)] = [ntc_lfc, ntc_pvalue]
+
+
     return gene_lfc_p
 
 #print ('fdr: ')
