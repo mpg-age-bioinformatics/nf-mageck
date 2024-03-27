@@ -810,7 +810,13 @@ def rank_test(df, control_genes ):
     def rank_test_(gene,ntc_sgRNA_p=ntc_sgRNA_p,df_targeting=df_targeting):
         df_gene = df_targeting[df_targeting['Gene'] == gene].sort_values('p.twosided')
         lfc = df_gene.iloc[:3]['LFC'].mean()
-        x, pvalue = mannwhitneyu(list(df_gene['p.twosided'])[:3],ntc_sgRNA_p,alternative='two-sided')
+        try:
+            x, pvalue = mannwhitneyu(list(df_gene['p.twosided'])[:3],ntc_sgRNA_p,alternative='two-sided')
+        except:
+            print(gene, df_gene, lfc, list(df_gene['p.twosided'])[:3], ntc_sgRNA_p  )
+            import sys
+            sys.stdout.flush()
+            sys.exit()
         return f"{lfc},{pvalue}" 
 
     genes["lfc_pvalue"]=genes["gene"].apply(lambda gene : rank_test_(gene) )
