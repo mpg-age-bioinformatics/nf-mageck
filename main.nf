@@ -813,7 +813,7 @@ def rank_test(df, control_genes ):
         x, pvalue = mannwhitneyu(list(df_gene['p.twosided'])[:3],ntc_sgRNA_p,alternative='two-sided')
         return f"{lfc},{pvalue}" 
 
-    genes["lfc_pvalue"]=genes["gene"].apply(lamdba gene : rank_test_(gene) )
+    genes["lfc_pvalue"]=genes["gene"].apply(lambda gene : rank_test_(gene) )
     lfc_pvalue=[ [ float( s.split(",")[0] ),   float( s.split(",")[1] ) ] for s in  genes["lfc_pvalue"].tolist() ]
     genes=genes["gene"].tolist()
     # gene_lfc_p=dict(zip(genes, lfc_pvalue ))
@@ -837,7 +837,7 @@ def rank_test(df, control_genes ):
         return f"{ntc_lfc},{ntc_pvalue}" 
 
     num_of_genes=pd.DataFrame( { "j":range(num_of_genes) } )
-    num_of_genes["lfc_pvalue"]=num_of_genes["j"].apply(lamdba x: ntc_i() )
+    num_of_genes["lfc_pvalue"]=num_of_genes["j"].apply(lambda x: ntc_i() )
     lfc_pvalue_=[ [ float( s.split(",")[0] ),   float( s.split(",")[1] ) ] for s in  num_of_genes["lfc_pvalue"].tolist() ]
     num_of_genes=num_of_genes["j"].tolist()
     num_of_genes=[ 'NTC_' + str(j) for j in num_of_genes ]
