@@ -813,9 +813,9 @@ def rank_test(df, control_genes ):
         try:
             x, pvalue = mannwhitneyu(list(df_gene['p.twosided'])[:3],ntc_sgRNA_p,alternative='two-sided')
         except Exception as error :
-            print("\n##################\n")
+            print("##################")
             print("gene",gene, "p values", list(df_gene['p.twosided'])[:3], "ntc_sgrna_p", ntc_sgRNA_p  )
-            print("\n##################\n")
+            print("##################")
             x, pvalue = mannwhitneyu(list(df_gene['p.twosided'])[:3],ntc_sgRNA_p,alternative='two-sided')
   
         return f"{lfc},{pvalue}" 
