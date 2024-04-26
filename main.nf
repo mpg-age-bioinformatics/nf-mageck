@@ -286,7 +286,7 @@ process prossc {
   script:
     """
     echo "SSC -l ${params.SSC_sgRNA_size} -m ${params.efficiency_matrix} -i ${params.project_folder}/${params.output_mle}/library.txt -o ${params.project_folder}/${params.output_mle}/library.eff.txt"
-    SSC -l ${params.SSC_sgRNA_size} -m ${params.efficiency_matrix} -i ${params.project_folder}/${params.output_mle}/library.txt -o ${params.project_folder}/${params.output_mle}/library.eff.txt
+    SSC -l ${params.SSC_sgRNA_size} -m ${params.efficiency_matrix} -i ${params.project_folder}/${params.output_mle}/library.txt -o ${params.project_folder}/${params.output_mle}/library.eff.txt  & sleep 60
     """
 }
 
@@ -722,6 +722,9 @@ process profluterra {
   input:
     val label
 
+  when:
+    (  ! file("${params.project_folder}/${params.output_test}/MAGeCKFlute_${label}/FluteRRA_${label}.pdf").exists() )
+
   script:
   """
 #!/usr/bin/Rscript
@@ -739,6 +742,8 @@ process proflutemle {
   input:
     val label
     val cell_lines
+  when:
+    (  ! file("${params.project_folder}/${params.output_mle}/depmap/MAGeCKFlute_${label}/FluteMLE_${label}_cell_cycle.pdf").exists() )
 
   script:
   """
@@ -1189,16 +1194,17 @@ workflow mageck_vispr {
 }
 
 workflow mageck_flute {
+
+  labels_test=channel.fromPath( "${params.project_folder}/${params.output_test}/*.gene_summary.txt" )
+  labels_test=labels_test.map{ "$it.baseName" }
+  labels_test=labels_test.map{ "$it".replace(".txt","").replace(".gene_summary","") }
+  profluterra(labels_test)
+
   if ( "${params.skip_mle}" != "True" ) {
-
-    labels_test=channel.fromPath( "${params.project_folder}/${params.output_test}/*.gene_summary.txt" )
-    labels_test=labels_test.map{ "$it.baseName" }
-    labels_test=labels_test.map{ "$it".replace(".txt","").replace(".gene_summary","") }
-    profluterra(labels_test)
-
     if ( 'depmap' in params.keySet()  ) {
       if ( ! file("${params.project_folder}/${params.output_mle}/depmap").isDirectory() ) {
         file("${params.project_folder}/${params.output_mle}/depmap").mkdirs()
+      }
 
       if ( 'depmap_cell_line' in params.keySet()  ) {    
         depmap_cell_line="${params.depmap_cell_line}".replace(' ', '","')
@@ -1212,9 +1218,7 @@ workflow mageck_flute {
       labels_mle=labels_mle.map{ "$it".replace(".txt","").replace(".gene_summary","") }
 
       proflutemle(labels_mle, depmap_cell_line)
-
-      }
-
+      
     }
   }
 }
