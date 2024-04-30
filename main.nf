@@ -750,9 +750,18 @@ process proflutemle {
 #!/usr/bin/Rscript
 library(MAGeCKFlute)
 library(ggplot2)
-FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", incorporateDepmap=TRUE ${cell_lines}  )
-  """
+
+gdata_file <-"${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt"
+gdata = ReadBeta(gdata_file)
+
+if ( "${params.mageckflute_organism}" == "mmu" ) {
+  gdata$HumanGene = TransGeneID(gdata$Gene, fromType = "symbol", toType = "symbol", fromOrg = "mmu", toOrg = "hsa")
+  idx = duplicated(gdata$HumanGene)|is.na(gdata$HumanGene)
+  gdata = gdata[!idx, ]
 }
+depmap_similarity = ResembleDepmap(gdata, symbol = "HumanGene", score = "Score")
+FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE ${cell_lines}  )
+"""
 
 process promagecku {
   stageInMode 'symlink'
