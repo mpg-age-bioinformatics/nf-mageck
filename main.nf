@@ -762,6 +762,7 @@ if ( "${params.mageckflute_organism}" == "mmu" ) {
 depmap_similarity = ResembleDepmap(gdata, symbol = "HumanGene", score = "Score")
 FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE ${cell_lines}  )
 """
+}
 
 process promagecku {
   stageInMode 'symlink'
