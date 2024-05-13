@@ -309,6 +309,7 @@ process premle {
 #!/usr/local/bin/python3
 import os
 import pandas as pd
+import numpy as np
 from pathlib import Path
 
 matrices="${matrices}"
@@ -382,20 +383,22 @@ with open("${params.samples_tsv}","r") as samples :
 
 if matrices:
   matfiles=os.listdir(matrices)
-  matfiles=[ s for s in matfiles if "mat." in s ]
+  matfiles=[ s for s in matfiles if "mat." in s and ".tsv" in s ]
   for mat in matfiles:
     label=mat.split(".")[1]
     txt=mat.replace(".tsv", ".txt" )
     df=pd.read_csv(f"{matrices}/{txt}",sep=";", header=None)
 
     control_sgrna=df.loc[ df[0]=="sgrnas", 1].values[0]
-    if control_sgrna != "none" : 
+    ## if control_sgrna != "none" : 
+    if str(control_sgrna) != str(np.nan) :
       control_sgrna=f"--control-sgrna {control_sgrna}"
     else:
       control_sgrna=""
 
     control_gene=df.loc[ df[0]=="genes", 1].values[0]
-    if control_gene != "none" :
+    ## if control_gene != "none" :
+    if str(control_gene) != str(np.nan) :
       control_gene=f"--control-gene {control_gene}"
     else:
       control_gene=""
@@ -755,11 +758,11 @@ gdata_file <-"${params.project_folder}/${params.output_mle}/${label}.gene_summar
 gdata = ReadBeta(gdata_file)
 
 if ( "${params.mageckflute_organism}" == "mmu" ) {
-  gdata$HumanGene = TransGeneID(gdata$Gene, fromType = "symbol", toType = "symbol", fromOrg = "mmu", toOrg = "hsa")
-  idx = duplicated(gdata$HumanGene)|is.na(gdata$HumanGene)
+  gdata\$HumanGene = TransGeneID(gdata\$Gene, fromType = "symbol", toType = "symbol", fromOrg = "mmu", toOrg = "hsa")
+  idx = duplicated(gdata\$HumanGene)|is.na(gdata\$HumanGene)
   gdata = gdata[!idx, ]
 }
-depmap_similarity = ResembleDepmap(gdata, symbol = "Gene", score = "Score")
+depmap_similarity = ResembleDepmap(gdata, symbol = "Gene", score = "${label}")
 FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE ${cell_lines}  )
 """
 }
