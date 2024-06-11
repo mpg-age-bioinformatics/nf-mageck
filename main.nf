@@ -128,6 +128,7 @@ df_rename = pd.read_csv('${params.project_folder}/samples_renamed.tsv', sep=';',
 # Replace the first column in rename with the orignal
 df_rename[0] = df_sample[0]
 df_rename.to_csv('${params.project_folder}/samples_renamed.tsv', sep=';', index=False, header=False)
+print("Complete")
   """
 
 }
@@ -167,6 +168,8 @@ process procount {
     echo "library: ${library}\noutput_count: ${params.project_folder}/${output_count}"
 
     mageck count --pdf-report -l ${library} -n ${params.project_folder}/${output_count}/counts --sample-label "\${samples:1}" --fastq \${input_files}
+
+    echo "Mageck count: Done!"
     """
 }
 
@@ -238,7 +241,8 @@ process protest {
     fi
 
     mageck test \${pdf} --normcounts-to-file \${mageck_test_remove_zero} \${mageck_test_remove_zero_threshold} -k ${params.project_folder}/${params.output_count}/counts.count.txt -t ${treatment} \${control} -n ${params.project_folder}/${params.output_test}/${label} \${cnv_norm} \${paired_testing} \${control_sgrna} \${control_gene}
-     
+    
+    echo "Mageck test: Done!"
     """
 }
 
@@ -287,6 +291,7 @@ process prossc {
     """
     echo "SSC -l ${params.SSC_sgRNA_size} -m ${params.efficiency_matrix} -i ${params.project_folder}/${params.output_mle}/library.txt -o ${params.project_folder}/${params.output_mle}/library.eff.txt"
     SSC -l ${params.SSC_sgRNA_size} -m ${params.efficiency_matrix} -i ${params.project_folder}/${params.output_mle}/library.txt -o ${params.project_folder}/${params.output_mle}/library.eff.txt  & sleep 60
+    echo "SSC: Done!"
     """
 }
 
@@ -432,7 +437,7 @@ if matrices:
       f.write(cmd) 
 
 Path(f"${params.project_folder}/${params.output_mle}/mle.preprocess.done").touch()
-
+print("mageck MLE pre streps - done!")
     """ 
 }
 
@@ -449,6 +454,7 @@ process promle {
   script:
   """
   bash ${sh_script}
+  echo "mageck MLE: Done!"
   """
 
 }
@@ -516,6 +522,7 @@ sgrnas_merged.to_csv(infolder +'merged.sgrnas.summary.tsv', sep='\\t', index=Fal
 genes_merged.to_csv(infolder + 'merged.genes.summary.tsv', sep='\\t', index = False)
 sgrnas_merged.to_excel(infolder + 'merged.sgrnas.summary.xlsx', index = False)
 genes_merged.to_excel(infolder + 'merged.genes.summary.xlsx', index = False)
+print("Merging and Annotation: Done!")
     """
 
 }
@@ -612,6 +619,7 @@ for(i in 1:nrow(sigPos)){
   plot_data[seq(3, nrow(plot_data), 2), 'label'] = names(statsAdj)[a]
   write.xlsx(plot_data, paste0("${params.project_folder}/${params.output_pathway}/", label, "/pos.", P, '.xlsx'), row.names = FALSE)
 }
+print("GSEA pathway analysis: Done.")
 sessionInfo()
   """
 
@@ -632,6 +640,7 @@ process propathtargz {
   tar -T temp.${folder}.txt -cvzf ${folder}.tar.gz --remove-files && \
   rm temp.${folder}.txt && \
   rm -rf ${folder}
+  echo "Taring fgsea output: Done."
   """
 }
 
@@ -646,6 +655,7 @@ process proplot {
   script:
   """
   mageck plot -k ${params.project_folder}/${params.output_count}/counts.count.txt -g ${gene_ranking_file} -n ${params.project_folder}/${params.output_plot}/${label}
+  echo "mageck plot: done."
   """
 }
 
@@ -692,6 +702,7 @@ for zip_file in fastqc_files:
 yaml_file=f"${params.project_folder}/${params.output_vispr}/{e}.${test_type}.yaml"
 with open(yaml_file, "w") as fout:
   fout.write(yaml)
+print("vispr: done.")
 """
 }
 
@@ -714,6 +725,7 @@ for zip_file in fastqc_files:
   if not os.path.isdir("${params.project_folder}/${params.output_vispr}/fastqc/{folder}/") :
     with zipfile.ZipFile(f"${params.vispr_fastqc}/{zip_file}") as myzip:
       myzip.extract(f'{folder}/fastqc_data.txt',path=f"${params.project_folder}/${params.output_vispr}/fastqc/")
+print("vispr-fastqc: done.")
 """
 }
 
@@ -734,6 +746,7 @@ process profluterra {
 library(MAGeCKFlute)
 library(ggplot2)
 FluteRRA("${params.project_folder}/${params.output_test}/${label}.gene_summary.txt", "${params.project_folder}/${params.output_test}/${label}.sgrna_summary.txt", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/", omitEssential=FALSE)
+print("FluteRRA: Done.")
   """
 }
 
@@ -764,6 +777,7 @@ if ( "${params.mageckflute_organism}" == "mmu" ) {
 }
 depmap_similarity = ResembleDepmap(gdata, symbol = "Gene", score = "${label}")
 FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE ${cell_lines}  )
+print("FluteMLE: Done.")
 """
 }
 
@@ -1012,6 +1026,7 @@ if make_plot == 1:
     plt.title(output_name,fontsize=18)
     plt.savefig(output_folder + "/" + output_name + '_volcano_plot.pdf')
     plt.show()
+print("magecku: done.")
 """
 }
 
