@@ -745,7 +745,78 @@ process profluterra {
 #!/usr/bin/Rscript
 library(MAGeCKFlute)
 library(ggplot2)
-FluteRRA("${params.project_folder}/${params.output_test}/${label}.gene_summary.txt", "${params.project_folder}/${params.output_test}/${label}.sgrna_summary.txt", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/", omitEssential=FALSE)
+
+gdata_file <-"${params.project_folder}/${params.output_test}/${label}.gene_summary.txt"
+gdata = ReadRRA(gdata_file)
+
+sdata_file <- "${params.project_folder}/${params.output_test}/${label}.sgrna_summary.txt"
+sdata = ReadsgRRA(sdata_file)
+
+if ( "${params.mageckflute_organism}" == "mmu" ) {
+  gdata\$HumanGene = TransGeneID(gdata\$id, fromType = "symbol", toType = "symbol", fromOrg = "mmu", toOrg = "hsa")
+  idx = duplicated(gdata\$HumanGene)|is.na(gdata\$HumanGene)
+  gdata = gdata[!idx, ]
+  FluteRRA(gdata, sdata, proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/", omitEssential=FALSE)
+} else {
+  FluteRRA("${params.project_folder}/${params.output_test}/${label}.gene_summary.txt", "${params.project_folder}/${params.output_test}/${label}.sgrna_summary.txt", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/", omitEssential=FALSE)
+}
+
+ResembleDepmap_man <- function(dd, symbol = "id", score = "Score", lineages = "All",
+                           method = c("pearson", "spearman", "kendall")[1]){
+  dd = dd[!duplicated(dd[, symbol]), ]
+  rownames(dd) = dd[, symbol]
+  
+  ## Load Depmap data
+  depmap_rds = file.path(system.file("extdata", package = "MAGeCKFlute"), "Depmap_19Q3.rds")
+  if(file.exists(depmap_rds)){
+    Depmap_19Q3 = readRDS(depmap_rds)
+  }else{
+    Depmap_19Q3 = t(read.csv("https://ndownloader.figshare.com/files/24613292", header = TRUE,
+                             row.names = 1, stringsAsFactors = FALSE, check.names = FALSE))
+    rownames(Depmap_19Q3) = gsub(" .*", "", rownames(Depmap_19Q3))
+    saveRDS(Depmap_19Q3, depmap_rds)
+  }
+  meta_rds = file.path(system.file("extdata", package = "MAGeCKFlute"), "Depmap_sample_info.rds")
+  if(file.exists(meta_rds)){
+    sampleinfo = readRDS(meta_rds)
+  }else{
+    sampleinfo = read.csv("https://ndownloader.figshare.com/files/24613394",
+                          row.names = 1, header = TRUE, stringsAsFactors = FALSE)
+    saveRDS(sampleinfo, meta_rds)
+  }
+  if(!"all" %in% tolower(lineages)){
+    idx = sampleinfo$lineage%in%tolower(lineages)
+    idx = colnames(Depmap_19Q3)%in%rownames(sampleinfo)[idx]
+    if(sum(idx)>5){
+      Depmap_19Q3 = Depmap_19Q3[, idx]
+    }else{ warning("Less than 5 cell lines are avaible, so ignore lineage setting.")}
+  }
+  ## Explore the relationship
+  genes = intersect(rownames(dd), rownames(Depmap_19Q3))
+  if(length(genes)<10) stop("Invalid gene symbols.")
+  if(method %in% c("pearson", "spearman", "kendall")){
+    similarity = apply(Depmap_19Q3[genes,], 2, function(x){
+      tmp = cor.test(x, dd[genes, score], method = method, na.action=na.omit)
+      c(tmp$estimate, tmp$p.value)
+    })
+  }else{
+    stop("Invalid distance measure!!!")
+  }
+  similarity = as.data.frame(t(similarity))
+  colnames(similarity) = c("estimate", "p.value")
+  rownames(similarity) = sampleinfo[colnames(Depmap_19Q3), 1]
+  similarity = similarity[order(-similarity$estimate), ]
+  return(similarity)
+}
+
+if ( "${params.mageckflute_organism}" == "mmu" ) {
+  depmap_sim <- ResembleDepmap_man(gdata, symbol = "HumanGene", score = "Score", lineages = "All", method = c("pearson", "spearman", "kendall")[1])
+} else {
+  depmap_sim <- ResembleDepmap_man(gdata, symbol = "id", score = "Score", lineages = "All", method = c("pearson", "spearman", "kendall")[1])
+}
+
+write.table(depmap_sim, file="${params.project_folder}/${params.output_test}/MAGeCKFlute_${label}/FluteRRA_${label}.depmap.similarity.tsv", sep="\\t", quote = FALSE, row.names = TRUE)
+
 print("FluteRRA: Done.")
   """
 }
@@ -774,9 +845,15 @@ if ( "${params.mageckflute_organism}" == "mmu" ) {
   gdata\$HumanGene = TransGeneID(gdata\$Gene, fromType = "symbol", toType = "symbol", fromOrg = "mmu", toOrg = "hsa")
   idx = duplicated(gdata\$HumanGene)|is.na(gdata\$HumanGene)
   gdata = gdata[!idx, ]
+  FluteMLE(gdata, treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE ${cell_lines}  )
+
+} else {
+  FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE ${cell_lines}  )
 }
-depmap_similarity = ResembleDepmap(gdata, symbol = "Gene", score = "${label}")
-FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE ${cell_lines}  )
+
+#####depmap_similarity = ResembleDepmap(gdata, symbol = "Gene", score = "${label}")
+
+#######FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE ${cell_lines}  )
 print("FluteMLE: Done.")
 """
 }
