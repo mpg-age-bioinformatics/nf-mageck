@@ -767,7 +767,7 @@ ResembleDepmap_man <- function(dd, symbol = "id", score = "Score", lineages = "A
   rownames(dd) = dd[, symbol]
   
   ## Load Depmap data
-  depmap_rds = file.path(system.file("extdata", package = "MAGeCKFlute"), "Depmap_19Q3.rds")
+  depmap_rds = "/nexus/posix0/MAGE-flaski/service/databases/MAGeCKFlute/depmap/Depmap_19Q3.rds"
   if(file.exists(depmap_rds)){
     Depmap_19Q3 = readRDS(depmap_rds)
   }else{
@@ -776,7 +776,7 @@ ResembleDepmap_man <- function(dd, symbol = "id", score = "Score", lineages = "A
     rownames(Depmap_19Q3) = gsub(" .*", "", rownames(Depmap_19Q3))
     saveRDS(Depmap_19Q3, depmap_rds)
   }
-  meta_rds = file.path(system.file("extdata", package = "MAGeCKFlute"), "Depmap_sample_info.rds")
+  meta_rds = "/nexus/posix0/MAGE-flaski/service/databases/MAGeCKFlute/depmap/Depmap_sample_info.rds"
   if(file.exists(meta_rds)){
     sampleinfo = readRDS(meta_rds)
   }else{
@@ -785,7 +785,7 @@ ResembleDepmap_man <- function(dd, symbol = "id", score = "Score", lineages = "A
     saveRDS(sampleinfo, meta_rds)
   }
   if(!"all" %in% tolower(lineages)){
-    idx = sampleinfo$lineage%in%tolower(lineages)
+    idx = sampleinfo\$lineage%in%tolower(lineages)
     idx = colnames(Depmap_19Q3)%in%rownames(sampleinfo)[idx]
     if(sum(idx)>5){
       Depmap_19Q3 = Depmap_19Q3[, idx]
@@ -797,7 +797,7 @@ ResembleDepmap_man <- function(dd, symbol = "id", score = "Score", lineages = "A
   if(method %in% c("pearson", "spearman", "kendall")){
     similarity = apply(Depmap_19Q3[genes,], 2, function(x){
       tmp = cor.test(x, dd[genes, score], method = method, na.action=na.omit)
-      c(tmp$estimate, tmp$p.value)
+      c(tmp\$estimate, tmp\$p.value)
     })
   }else{
     stop("Invalid distance measure!!!")
@@ -805,7 +805,7 @@ ResembleDepmap_man <- function(dd, symbol = "id", score = "Score", lineages = "A
   similarity = as.data.frame(t(similarity))
   colnames(similarity) = c("estimate", "p.value")
   rownames(similarity) = sampleinfo[colnames(Depmap_19Q3), 1]
-  similarity = similarity[order(-similarity$estimate), ]
+  similarity = similarity[order(-similarity\$estimate), ]
   return(similarity)
 }
 
