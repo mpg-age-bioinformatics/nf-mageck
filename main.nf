@@ -459,6 +459,166 @@ process promle {
 
 }
 
+process integration_plot {
+  stageInMode 'symlink'
+  stageOutMode 'move'
+  
+  when:
+    ( ! file("${params.project_folder}/${params.output_mle}/mle.integration_plot.done").exists()  )
+
+  input:
+    val folder
+    val folder_status
+    val matrices
+
+  script:
+    """
+#!/usr/local/bin/python3
+import pandas as pd
+import os
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
+import seaborn as sns
+from pathlib import Path
+
+project_folder="${params.project_folder}"
+mle="${params.output_mle}"
+
+### beta from pairwise
+def collect_betas(proj):
+    proj_betas=pd.DataFrame(columns=["Gene"])
+    proj_beta_files=os.listdir(project_folder+"/"+mle)
+    proj_beta_files=[s for s in proj_beta_files if "gene_summary.txt" in s and "matrix" not in s]
+    proj_beta_files
+
+    for file in proj_beta_files:
+        # print(file)
+        df=pd.read_csv(project_folder+"/"+mle+"/"+file, sep="\t")
+        df_sub=df[["Gene"]+[s for s in df.columns.tolist() if "|beta" in s]]
+        cols_to_rename=[s for s in df_sub.columns.tolist() if "|beta" in s][0]
+        df_sub=df_sub.rename(columns={cols_to_rename: 'pairwise'+"("+cols_to_rename+")"})
+        proj_betas=proj_betas.merge(df_sub, how="right", on="Gene")
+        
+    return proj_betas
+
+all_betas=collect_betas(project_folder) ### beta from pairwise
+
+raw_pair=pd.read_csv(project_folder + '/samples.tsv', sep=";", header=None)
+matrices="${matrices}"
+
+### beta from matrix
+def collect_betas_matrix(proj):
+    
+    proj_betas=pd.DataFrame(columns=["Gene"])
+
+    proj_beta_files=os.listdir(project_folder+"/"+mle)
+    proj_beta_files=[s for s in proj_beta_files if s==f"{new_name}_matrix.gene_summary.txt"][0] 
+
+    df=pd.read_csv(project_folder+"/"+mle+"/"+proj_beta_files, sep="\t")
+    df_sub=df[["Gene"]+[s for s in df.columns.tolist() if "|beta" in s]]
+    
+    # Rename the columns using the dictionary
+    rename_dict = {col: 'matrix' + '('+ col + ')' for col in df_sub.columns if "|beta" in col }
+    df_sub = df_sub.rename(columns=rename_dict)
+    
+    return df_sub
+
+if matrices :
+  mat_files=os.listdir(matrices)
+  mat_files=[s for s in mat_files if ".tsv" in s]
+
+  for mat_file in mat_files:
+    new_name=mat_file.split('mat.')[1].split('.tsv')[0]
+
+    matrix_betas=collect_betas_matrix(project_folder)  ### beta from matrix
+
+    if not os.path.isfile(project_folder+"/"+mle+"/pairwise_vesus_matrix_correlationPlots"+new_name+".pdf"):
+
+      raw_matrix=pd.read_csv(f"{matrices}/{mat_file}", sep="\t")
+
+      ### go through columns in matrix (from the 3rd column), get sample names that are '1', pick up the relavent rows in pairwise test tsv file
+      ### this way, to avoid too many unrelavent pairs of matrix versus pairwise
+
+      matrix_dict={}
+      for i in range(2, raw_matrix.shape[1]):
+          column_name = raw_matrix.columns[i]
+          samples = raw_matrix[raw_matrix.iloc[:, i] == 1].iloc[:, 0]
+          matrix_dict[column_name] = samples.tolist()
+
+      pairs_set = set()
+
+      # Iterate over keys in matrix_dict
+      for key in matrix_dict:
+          # Iterate over the elements in the value list of the current key
+          for element in matrix_dict[key]:
+              # Check if the element is in any of the specified columns (2 and 3)
+              matches = raw_pair[(raw_pair.iloc[:, 2] == element) | (raw_pair.iloc[:, 3] == element)]
+              # If matches found, get the corresponding values from the first column
+              if not matches.empty:
+                  for value in matches.iloc[:, 0]:
+                      pairs_set.add((key, value))
+
+      pairs = [list(pair) for pair in pairs_set]
+
+      # label look like ['matrix(Time|beta)', 'pairwise(JEKO_Cyta|beta)'
+      def label_pair(pair):
+          first_element = f"matrix({pair[0]}|beta)"
+          second_element = f"pairwise({pair[1]}|beta)"
+          return [first_element, second_element]
+
+      label_pairs = [label_pair(pair) for pair in pairs]
+
+      #plot
+      font = {'family' : 'serif',
+              'weight' : 'normal',
+              'size'   : 16}
+          
+      pdf = PdfPages(project_folder+"/"+mle+"/pairwise_vesus_matrix_correlationPlots"+new_name+".pdf")
+
+      w=4
+      l=3
+      i=1
+
+      fig = plt.figure(figsize=(30,20))
+
+      for pair in label_pairs:
+          x=pair[0]
+          y=pair[1]
+          df_plot=all_betas[['Gene']+[y]].merge(matrix_betas[['Gene']+[x]], how="right", on="Gene")
+          
+          ax = fig.add_subplot(l,w,i)
+
+          #ax.set_title("%s" %(gene_name), font)
+          sns.scatterplot(x=x, y=y, data=df_plot)
+          ax.set_xlabel(x, font)
+          ax.set_ylabel(y, font)
+          ax.tick_params(labelsize=16)
+          #matplotlib.rc('axes', linewidth=2)
+
+          i=i+1
+
+          if i == w*l+1:
+              plt.tight_layout()
+              plt.savefig(pdf, dpi=300, bbox_inches='tight', pad_inches=0.1,format='pdf')
+              plt.show()
+              plt.close()
+              i=1
+              fig = plt.figure(figsize=(30,20))
+
+      if i != 1:
+          plt.tight_layout()
+          plt.savefig(pdf, dpi=300, bbox_inches='tight', pad_inches=0.1,format='pdf')
+          plt.show()
+          plt.close()
+
+      pdf.close()
+
+Path(f"${params.project_folder}/${params.output_mle}/mle.integration_plot.done").touch()
+print("mageck MLE integration_plot - done!")
+    """
+}
+
 process merge_sumaries {
   stageInMode 'symlink'
   stageOutMode 'move'
@@ -1227,6 +1387,11 @@ workflow mageck_mle {
       data = channel.fromPath( "${params.project_folder}/${params.output_mle}/*mle.sh" )
       data = data.filter{ ! file( "$it".replace(".mle.sh", ".sgrna_summary.txt") ).exists() }
       promle( data )
+          
+      if ( 'mle_matrices' in params.keySet() ) {
+        matrices="${params.mle_matrices}"
+        integration_plot("${params.project_folder}/${params.output_mle}/", promle.out.collect(), matrices)
+      }
       merge_sumaries( "${params.project_folder}/${params.output_mle}/", promle.out.collect() )
     }
   }
