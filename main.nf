@@ -916,9 +916,9 @@ if ( "${params.mageckflute_organism}" == "mmu" ) {
   gdata\$HumanGene = TransGeneID(gdata\$id, fromType = "symbol", toType = "symbol", fromOrg = "mmu", toOrg = "hsa")
   idx = duplicated(gdata\$HumanGene)|is.na(gdata\$HumanGene)
   gdata = gdata[!idx, ]
-  FluteRRA(gdata, sdata, proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/", omitEssential=FALSE)
+  FluteRRA(gdata, sdata, proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/", omitEssential=FALSE, incorporateDepmap = TRUE)
 } else {
-  FluteRRA("${params.project_folder}/${params.output_test}/${label}.gene_summary.txt", "${params.project_folder}/${params.output_test}/${label}.sgrna_summary.txt", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/", omitEssential=FALSE)
+  FluteRRA("${params.project_folder}/${params.output_test}/${label}.gene_summary.txt", "${params.project_folder}/${params.output_test}/${label}.sgrna_summary.txt", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/", omitEssential=FALSE, incorporateDepmap = TRUE)
 }
 
 ResembleDepmap_man <- function(dd, symbol = "id", score = "Score", lineages = "All",
