@@ -387,6 +387,9 @@ with open("${params.samples_tsv}","r") as samples :
       f.write(cmd)
 
 if matrices:
+  if not os.path.exists("${params.project_folder}/${params.output_mle}/mle_matrix") :
+    os.makedirs("${params.project_folder}/${params.output_mle}/mle_matrix")
+
   matfiles=os.listdir(matrices)
   matfiles=[ s for s in matfiles if "mat." in s and ".tsv" in s ]
   for mat in matfiles:
@@ -425,7 +428,7 @@ if matrices:
     f"mageck mle "
     f"-k ${params.project_folder}/${params.output_count}/counts.count.txt "
     f"-d '{matrices}/{mat}' "
-    f"-n ${params.project_folder}/${params.output_mle}/{label}_matrix "
+    f"-n ${params.project_folder}/${params.output_mle}/mle_matrix/{label}_matrix "
     f"{control_sgrna} {control_gene} {cnv_norm} "
     f"--threads=10 ${sgrna_efficiency}"
     )
@@ -433,7 +436,7 @@ if matrices:
     print(f"Testing from matrix file {label}")
     print(f"    cmd: {cmd}")
       
-    with open(f"${params.project_folder}/${params.output_mle}/{label}_matrix.mle.sh", "w" ) as f :
+    with open(f"${params.project_folder}/${params.output_mle}/mle_matrix/{label}_matrix.mle.sh", "w" ) as f :
       f.write(cmd) 
 
 Path(f"${params.project_folder}/${params.output_mle}/mle.preprocess.done").touch()
@@ -442,6 +445,24 @@ print("mageck MLE pre streps - done!")
 }
 
 process promle {
+  stageInMode 'symlink'
+  stageOutMode 'move'
+
+  input:
+    val sh_script
+
+  output:
+    val "${params.project_folder}/${output_test}", emit: test_output_folder
+
+  script:
+  """
+  bash ${sh_script}
+  echo "mageck MLE: Done!"
+  """
+
+}
+
+process promle2 {
   stageInMode 'symlink'
   stageOutMode 'move'
 
@@ -484,6 +505,7 @@ from pathlib import Path
 
 project_folder="${params.project_folder}"
 mle="${params.output_mle}"
+mle_matrix=mle+"/mle_matrix"
 
 ### beta from pairwise
 def collect_betas(proj):
@@ -512,10 +534,10 @@ def collect_betas_matrix(proj):
     
     proj_betas=pd.DataFrame(columns=["Gene"])
 
-    proj_beta_files=os.listdir(project_folder+"/"+mle)
+    proj_beta_files=os.listdir(project_folder+"/"+mle_matrix)
     proj_beta_files=[s for s in proj_beta_files if s==f"{new_name}_matrix.gene_summary.txt"][0] 
 
-    df=pd.read_csv(project_folder+"/"+mle+"/"+proj_beta_files, sep="\t")
+    df=pd.read_csv(project_folder+"/"+mle_matrix+"/"+proj_beta_files, sep="\t")
     df_sub=df[["Gene"]+[s for s in df.columns.tolist() if "|beta" in s]]
     
     # Rename the columns using the dictionary
@@ -533,7 +555,7 @@ if matrices :
 
     matrix_betas=collect_betas_matrix(project_folder)  ### beta from matrix
 
-    if not os.path.isfile(project_folder+"/"+mle+"/pairwise_vesus_matrix_correlationPlots"+new_name+".pdf"):
+    if not os.path.isfile(project_folder+"/"+mle_matrix+"/pairwise_vesus_matrix_correlationPlots"+new_name+".pdf"):
 
       raw_matrix=pd.read_csv(f"{matrices}/{mat_file}", sep="\t")
 
@@ -553,7 +575,7 @@ if matrices :
           # Iterate over the elements in the value list of the current key
           for element in matrix_dict[key]:
               # Check if the element is in any of the specified columns (2 and 3)
-              matches = raw_pair[(raw_pair.iloc[:, 2] == element) | (raw_pair.iloc[:, 3] == element)]
+              matches = raw_pair[(raw_pair.iloc[:, 2].str.contains(element)) | (raw_pair.iloc[:, 3].str.contains(element))]
               # If matches found, get the corresponding values from the first column
               if not matches.empty:
                   for value in matches.iloc[:, 0]:
@@ -574,7 +596,7 @@ if matrices :
               'weight' : 'normal',
               'size'   : 16}
           
-      pdf = PdfPages(project_folder+"/"+mle+"/pairwise_vesus_matrix_correlationPlots"+new_name+".pdf")
+      pdf = PdfPages(project_folder+"/"+mle_matrix+"/pairwise_vesus_matrix_correlationPlots"+new_name+".pdf")
 
       w=4
       l=3
@@ -1389,9 +1411,13 @@ workflow mageck_mle {
       promle( data )
           
       if ( 'mle_matrices' in params.keySet() ) {
+        data = channel.fromPath( "${params.project_folder}/${params.output_mle}/mle_matrix/*mle.sh" )
+        data = data.filter{ ! file( "$it".replace(".mle.sh", ".sgrna_summary.txt") ).exists() }
+        promle2( data )
         matrices="${params.mle_matrices}"
-        integration_plot("${params.project_folder}/${params.output_mle}/", promle.out.collect(), matrices)
+        integration_plot("${params.project_folder}/${params.output_mle}/mle_matrix/", promle2.out.collect(), matrices)
       }
+
       merge_sumaries( "${params.project_folder}/${params.output_mle}/", promle.out.collect() )
     }
   }
