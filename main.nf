@@ -1019,6 +1019,17 @@ process proflutemle {
 #!/usr/bin/Rscript
 library(MAGeCKFlute)
 library(ggplot2)
+print("${cell_lines}")
+
+if ("${cell_lines}" == "none") {
+  if ("${params.depmap_cell_line}" != "") {
+    cell_lines = "${params.depmap_cell_line}"
+  } else {
+    cell_lines = "none"
+  }
+} else {
+  cell_lines = "${cell_lines}"
+}
 
 gdata_file <-"${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt"
 gdata = ReadBeta(gdata_file)
@@ -1027,10 +1038,25 @@ if ( "${params.mageckflute_organism}" == "mmu" ) {
   gdata\$HumanGene = TransGeneID(gdata\$Gene, fromType = "symbol", toType = "symbol", fromOrg = "mmu", toOrg = "hsa")
   idx = duplicated(gdata\$HumanGene)|is.na(gdata\$HumanGene)
   gdata = gdata[!idx, ]
-  FluteMLE(gdata, treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE ${cell_lines}  )
+  
+  if ( cell_lines == "none") {
+    # ! ResembleDepmap function not working
+    # depmap_similarity = ResembleDepmap(gdata, symbol = "Gene", score = "${label}")
+    # FluteMLE(gdata, treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE , cell_lines = rownames(depmap_similarity)[1], lineages = "All")
+    FluteMLE(gdata, treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE , cell_lines = 'NA')
+  } else {
+    FluteMLE(gdata, treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE , cell_lines = cell_lines)
+  } 
 
 } else {
-  FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE ${cell_lines}  )
+  if ( cell_lines == "none") {
+    # ! ResembleDepmap function not working
+    # depmap_similarity = ResembleDepmap(gdata, symbol = "Gene", score = "${label}")
+    # FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE , cell_lines = rownames(depmap_similarity)[1], lineages = "All")
+    FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE , cell_lines = 'NA')
+  } else {
+    FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = TRUE,  incorporateDepmap=TRUE , cell_lines = cell_lines  )
+  }
 }
 
 print("FluteMLE: Done.")
@@ -1499,17 +1525,39 @@ workflow mageck_flute {
         file("${params.project_folder}/${params.output_mle}/depmap").mkdirs()
       }
 
-      if ( 'depmap_cell_line' in params.keySet()  ) {    
-        depmap_cell_line="${params.depmap_cell_line}".replace(' ', '","')
-        depmap_cell_line=', cell_lines=c("'+depmap_cell_line +'")'
-      } else {
-        depmap_cell_line=', cell_lines = rownames(depmap_similarity)[1], lineages = "All"'
-      }
+      rows=Channel.fromPath("${params.samples_tsv}", checkIfExists:true).splitCsv(sep:';')
+      depmap_cell_line=rows.flatMap { n -> n[7] }.filter { it != null && it != "" }
+      cnv_fake=rows.flatMap { n -> "none" }
+      depmap_cell_line=depmap_cell_line.concat(cnv_fake)
+      // depmap_cell_line_count = depmap_cell_line.count()
+      // depmap_cell_line.view()
+
+      // // Handling the count result asynchronously
+      // depmap_cell_line_count.subscribe { count ->
+      //     if (count == 0) {
+      //         println "No valid depmap cell line found, handling the fallback logic."
+
+      //         if ('depmap_cell_line' in params.keySet()) {
+      //             depmap_cell_line = "${params.depmap_cell_line}".replace(' ', '","')
+      //             println "Using depmap_cell_line from params: ${depmap_cell_line}"
+      //             // depmap_cell_line = ', cell_lines=c("' + depmap_cell_line + '")'
+      //         } else {
+      //             // depmap_cell_line = ', cell_lines = rownames(depmap_similarity)[1], lineages = "All"'
+      //             depmap_cell_line = "depmap_similarityxxx"
+      //             println "Using default depmap_cell_line: ${depmap_cell_line}"
+      //         }
+      //     } else {
+      //         // Print valid cell line info for debugging
+      //         depmap_cell_line.subscribe { cell_line ->
+      //             println "Valid depmap cell line found: ${cell_line}"
+      //         }
+      //     }
+      // }
+
 
       labels_mle=channel.fromPath( "${params.project_folder}/${params.output_mle}/*.gene_summary.txt" )
       labels_mle=labels_mle.map{ "$it.baseName" }
       labels_mle=labels_mle.map{ "$it".replace(".txt","").replace(".gene_summary","") }
-
       proflutemle(labels_mle, depmap_cell_line)
       
     }
