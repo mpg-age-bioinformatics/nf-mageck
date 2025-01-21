@@ -203,7 +203,7 @@ process protest {
     if [ "${control}" != "none"  ]
       then 
         control="-c ${control}"
-        pdf=""
+        pdf="--pdf-report"
     else
         pdf="--pdf-report"
     fi
