@@ -1079,6 +1079,8 @@ from random import shuffle
 import subprocess
 import shlex
 import sys
+import os
+from multiprocessing import Pool
 
 def execute(command):
     print(command)
