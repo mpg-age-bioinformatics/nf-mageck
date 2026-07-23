@@ -240,7 +240,7 @@ process protest {
       control_gene=""
     fi
 
-    mageck test \${pdf} --gene-test-fdr-threshold 0.5 --normcounts-to-file \${mageck_test_remove_zero} \${mageck_test_remove_zero_threshold} -k ${params.project_folder}/${params.output_count}/counts.count.txt -t ${treatment} \${control} -n ${params.project_folder}/${params.output_test}/${label} \${cnv_norm} \${paired_testing} \${control_sgrna} \${control_gene}
+    mageck test \${pdf} --normcounts-to-file \${mageck_test_remove_zero} \${mageck_test_remove_zero_threshold} -k ${params.project_folder}/${params.output_count}/counts.count.txt -t ${treatment} \${control} -n ${params.project_folder}/${params.output_test}/${label} \${cnv_norm} \${paired_testing} \${control_sgrna} \${control_gene}
     
     echo "Mageck test: Done!"
     """
