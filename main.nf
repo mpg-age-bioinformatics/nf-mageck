@@ -80,6 +80,45 @@ df.to_csv("${params.project_folder}/samplesNames.tsv", sep=";", index=False, hea
 
 # process samples
 df=EXC.parse("samples")
+control_sgrna_col = "List of control sgRNAs"
+control_gene_col = "List of control genes"
+label_col = "Label"
+if label_col not in df.columns:
+    raise ValueError(f"Missing required samples column: {label_col}")
+labels = df[label_col].astype(str).str.strip()
+duplicate_labels = sorted(labels[labels.duplicated()].unique())
+if duplicate_labels:
+    raise ValueError("Duplicate samples Label values would overwrite MAGeCK outputs: " + ", ".join(duplicate_labels))
+if control_sgrna_col in df.columns:
+    for index, row in df.iterrows():
+        value = str(row[control_sgrna_col]).strip()
+        if value.lower() in ["", "none", "nan", "null"]:
+            df.at[index, control_sgrna_col] = "none"
+            continue
+
+        label = str(row[label_col]).strip()
+        control_sgrna_path = os.path.join("${params.project_folder}", f"{label}.control_sgRNAs.txt")
+        with open(control_sgrna_path, "w") as fout:
+            for sgrna in value.split(","):
+                sgrna = sgrna.strip()
+                if sgrna:
+                    fout.write(f"{sgrna}\\n")
+        df.at[index, control_sgrna_col] = control_sgrna_path
+if control_gene_col in df.columns:
+    for index, row in df.iterrows():
+        value = str(row[control_gene_col]).strip()
+        if value.lower() in ["", "none", "nan", "null"]:
+            df.at[index, control_gene_col] = "none"
+            continue
+
+        label = str(row[label_col]).strip()
+        control_gene_path = os.path.join("${params.project_folder}", f"{label}.control_genes.txt")
+        with open(control_gene_path, "w") as fout:
+            for gene in value.split(","):
+                gene = gene.strip()
+                if gene:
+                    fout.write(f"{gene}\\n")
+        df.at[index, control_gene_col] = control_gene_path
 df.to_csv("${params.project_folder}/samples.tsv", sep=";", index=False, header=False)
 
 # if mle model tables in reference file
@@ -114,9 +153,16 @@ else:
 
 print(sampleNames)
 for index, row in sampleNames.iterrows():
-    if not os.path.exists(renamed_folder+"/"+row[2]):
-        os.symlink(raw_folder+"/"+row[0], renamed_folder+"/"+row[2])
-        print(renamed_folder+"/"+row[2])
+    raw_file = str(row[0])
+    renamed_file = str(row[2])
+    raw_path = os.path.join(raw_folder, raw_file)
+    renamed_path = os.path.join(renamed_folder, renamed_file)
+    if raw_file and raw_file != "nan" and os.path.isfile(raw_path):
+        if not os.path.exists(renamed_path):
+            os.symlink(raw_path, renamed_path)
+            print(renamed_path)
+    else:
+        print(f"Skipping FASTQ symlink for {renamed_file}: {raw_path} was not found")
     # replace names also in other files, this might be unnesseccary later on
     samples = samples.replace(row[1], row[2])
 
@@ -921,11 +967,17 @@ process profluterra {
     val cell_lines
 
   when:
-    (  ! file("${params.project_folder}/${params.output_test}/MAGeCKFlute_${label}/FluteRRA_${label}.pdf").exists() )
+    (  ! file("${params.project_folder}/${params.output_test}/MAGeCKFlute_${label}/FluteRRA_${label}.done").exists() )
 
   script:
   """
 #!/usr/bin/Rscript
+project_cache <- file.path("${params.project_folder}", "r_cache_flute_v2", "rra", "${label}")
+dir.create(project_cache, recursive = TRUE, showWarnings = FALSE)
+Sys.setenv(XDG_CACHE_HOME = project_cache)
+options(AnnotationHub.Cache = file.path(project_cache, "R", "AnnotationHub"))
+options(ExperimentHub.Cache = file.path(project_cache, "R", "ExperimentHub"))
+
 library(MAGeCKFlute)
 library(ggplot2)
 
@@ -949,7 +1001,7 @@ if ( "${params.mageckflute_organism}" == "mmu" ) {
   gdata\$HumanGene = TransGeneID(gdata\$id, fromType = "symbol", toType = "symbol", fromOrg = "mmu", toOrg = "hsa")
   idx = duplicated(gdata\$HumanGene)|is.na(gdata\$HumanGene)
   gdata = gdata[!idx, ]
-  FluteRRA(gdata, sdata, proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/", omitEssential=FALSE, incorporateDepmap = TRUE, cell_lines = cell_lines)
+    FluteRRA(gdata, sdata, proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/", omitEssential=FALSE, incorporateDepmap = TRUE, cell_lines = cell_lines)
 } else {
   FluteRRA("${params.project_folder}/${params.output_test}/${label}.gene_summary.txt", "${params.project_folder}/${params.output_test}/${label}.sgrna_summary.txt", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_test}/", omitEssential=FALSE, incorporateDepmap = TRUE, cell_lines = cell_lines)
 }
@@ -1009,6 +1061,7 @@ if ( "${params.mageckflute_organism}" == "mmu" ) {
 }
 
 write.table(depmap_sim, file="${params.project_folder}/${params.output_test}/MAGeCKFlute_${label}/FluteRRA_${label}.depmap.similarity.tsv", sep="\\t", quote = FALSE, row.names = TRUE)
+file.create("${params.project_folder}/${params.output_test}/MAGeCKFlute_${label}/FluteRRA_${label}.done")
 
 print("FluteRRA: Done.")
   """
@@ -1023,11 +1076,17 @@ process proflutemle {
     val label
     val cell_lines
   when:
-    (  ! file("${params.project_folder}/${params.output_mle}/depmap/MAGeCKFlute_${label}/FluteMLE_${label}_cell_cycle.pdf").exists() )
+    (  ! file("${params.project_folder}/${params.output_mle}/depmap/MAGeCKFlute_${label}/FluteMLE_${label}.done").exists() )
 
   script:
   """
 #!/usr/bin/Rscript
+project_cache <- file.path("${params.project_folder}", "r_cache_flute_v2", "mle", "${label}")
+dir.create(project_cache, recursive = TRUE, showWarnings = FALSE)
+Sys.setenv(XDG_CACHE_HOME = project_cache)
+options(AnnotationHub.Cache = file.path(project_cache, "R", "AnnotationHub"))
+options(ExperimentHub.Cache = file.path(project_cache, "R", "ExperimentHub"))
+
 library(MAGeCKFlute)
 library(ggplot2)
 print("${cell_lines}")
@@ -1054,6 +1113,7 @@ if ( "${params.mageckflute_organism}" == "mmu" ) {
   FluteMLE("${params.project_folder}/${params.output_mle}/${label}.gene_summary.txt", treatname="${label}", ctrlname="Depmap", proj="${label}", organism="${params.mageckflute_organism}", outdir="${params.project_folder}/${params.output_mle}/depmap", omitEssential = FALSE,  incorporateDepmap=TRUE , cell_lines = cell_lines  )
 }
 
+file.create("${params.project_folder}/${params.output_mle}/depmap/MAGeCKFlute_${label}/FluteMLE_${label}.done")
 print("FluteMLE: Done.")
 """
 }
@@ -1622,5 +1682,3 @@ workflow mageck_flute {
     }
   }
 }
-
-
